@@ -1,6 +1,6 @@
 # ShopService
 
-A sample Spring Boot RESTful API for validating integration with OJP(Open JDBC proxy).
+A sample Spring Boot RESTful API for validating integration with OJP(Open J proxy).
 The sample app is intended for managing a shop’s users, products, orders, order items, and product reviews.  
 This project demonstrates a multi-entity, relational domain model with CRUD operations, integration testing, and a PostgreSQL (or H2 for tests) backend.
 
@@ -56,7 +56,7 @@ Or use H2 for a quick start (see commented section in properties).
 
 ### 3. Build and run the application
 
-This application is not intended to be run but instead to run validation tests using the OJP (Open JDBC Proxy). Still you should be able to run it as a service with below commands.
+This application is not intended to be run but instead to run validation tests using the OJP (Open J Proxy). Still you should be able to run it as a service with below commands.
 
 >  mvn clean install
 

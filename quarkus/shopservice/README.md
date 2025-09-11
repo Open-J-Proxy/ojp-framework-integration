@@ -1,7 +1,7 @@
 # ShopService (Quarkus Edition)
 
 A sample Java RESTful API for managing a shop’s users, products, orders, order items, and product reviews, built with [Quarkus](https://quarkus.io/).  
-This project demonstrates a multi-entity, relational domain model with CRUD operations, integration testing, and an H2 in-memory database for tests integrated with OJP (Open JDBC Proxy).
+This project demonstrates a multi-entity, relational domain model with CRUD operations, integration testing, and an H2 in-memory database for tests integrated with OJP (Open J Proxy).
 
 ---
 

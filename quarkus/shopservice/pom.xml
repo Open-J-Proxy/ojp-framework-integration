@@ -41,9 +41,9 @@
             <version>3.9.6</version>
         </dependency>
         <dependency>
-            <groupId>org.openjdbcproxy</groupId>
+            <groupId>org.openjproxy</groupId>
             <artifactId>ojp-jdbc-driver</artifactId>
-            <version>0.1.0-beta</version>
+            <version>0.1.1-beta</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -54,9 +54,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.openjdbcproxy</groupId>
+            <groupId>org.openjproxy</groupId>
             <artifactId>ojp-jdbc-driver</artifactId>
-            <version>0.1.0-beta</version>
+            <version>0.1.1-beta</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
         <!--<dependency>
