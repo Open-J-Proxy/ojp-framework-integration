@@ -37,6 +37,7 @@ jobs:
         run: rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
 
       # Build and install ojp-jdbc-driver with integration test SNAPSHOT version
+      # This version will be used by all frameworks (Spring Boot, Quarkus, Micronaut)
       - name: Set ojp-jdbc-driver version to SNAPSHOT
         run: |
           mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl ojp-jdbc-driver -DgenerateBackupPoms=false
