@@ -32,7 +32,22 @@ jobs:
           distribution: 'temurin'
           java-version: '22'
 
-      - name: Install (ojp modules)
+      # Clean Maven repository to avoid stale ojp-jdbc-driver artifacts
+      - name: Clean ojp-jdbc-driver from local Maven repository
+        run: rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
+
+      # Build and install ojp-jdbc-driver with integration test SNAPSHOT version
+      - name: Set ojp-jdbc-driver version to SNAPSHOT
+        run: |
+          mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl ojp-jdbc-driver -DgenerateBackupPoms=false
+        working-directory: ojp
+
+      - name: Build and install ojp-jdbc-driver with SNAPSHOT version
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests
+        working-directory: ojp
+
+      # Install remaining ojp modules
+      - name: Install remaining ojp modules
         run: mvn clean install -DskipTests
         working-directory: ojp
 
