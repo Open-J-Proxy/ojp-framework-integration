@@ -1,0 +1,20 @@
+# Build artifacts
+target/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Atomikos transaction logs
+*.epoch
+*.log
+tm*.log
