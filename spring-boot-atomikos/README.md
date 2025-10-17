@@ -15,7 +15,7 @@ This project focuses on validating distributed transaction behavior using:
 - **Two-Phase Commit (2PC)** transactions across PostgreSQL and MySQL
 - Comprehensive integration tests covering:
   - Successful commits across both databases
-  - Rollback on failures
+  - Rollback on failures  
   - Partial failure handling and atomicity guarantees
   - Transaction timeout scenarios
   - Connection management and isolation
@@ -36,7 +36,7 @@ All integration tests validate that operations on both databases are atomic:
 
 - **Java 21**
 - **Spring Boot 3.2.6**
-- **Spring Boot JTA Atomikos Starter**
+- **Atomikos 6.0.0** (Spring Boot 3 compatible version with Jakarta EE 9+)
 - **PostgreSQL** (via Testcontainers)
 - **MySQL** (via Testcontainers)
 - **JUnit 5**
@@ -92,22 +92,23 @@ Tests connection management and isolation:
 
 ```
 src/main/java/com/example/atomikos/
-├── AtomikosApplication.java          # Main application class
+├── AtomikosApplication.java                # Main application class
 ├── config/
-│   ├── PostgresDataSourceConfig.java # PostgreSQL XA DataSource configuration
-│   └── MysqlDataSourceConfig.java    # MySQL XA DataSource configuration
+│   ├── PostgresDataSourceConfig.java       # PostgreSQL XA DataSource configuration
+│   ├── MysqlDataSourceConfig.java          # MySQL XA DataSource configuration
+│   └── TransactionManagerConfig.java       # JTA Transaction Manager configuration
 ├── entity/
 │   ├── postgres/
-│   │   └── Account.java              # Account entity
+│   │   └── Account.java                    # Account entity
 │   └── mysql/
-│       └── AuditLog.java             # AuditLog entity
+│       └── AuditLog.java                   # AuditLog entity
 ├── repository/
 │   ├── postgres/
-│   │   └── AccountRepository.java    # Account repository
+│   │   └── AccountRepository.java          # Account repository
 │   └── mysql/
-│       └── AuditLogRepository.java   # AuditLog repository
+│       └── AuditLogRepository.java         # AuditLog repository
 └── service/
-    └── TransactionService.java       # Business logic with @Transactional
+    └── TransactionService.java             # Business logic with @Transactional
 
 src/test/java/com/example/atomikos/integration/
 ├── DistributedTransactionSuccessIT.java
@@ -132,3 +133,9 @@ Each datasource is configured as an `AtomikosDataSourceBean` with XA support.
 - All tests use Testcontainers, so Docker must be running
 - Transaction timeouts are configured at method level using `@Transactional(timeout = n)`
 - The application demonstrates how Atomikos ensures ACID properties across multiple databases
+- XA transactions require proper configuration of both database drivers and the Atomikos transaction manager
+- The project was developed with Java 17 during testing and configured for Java 21 as per repository standards
+
+## Known Issues
+
+Some integration tests may experience intermittent failures related to XA transaction prepare phase (HeurHazardException). This is often due to timing issues or resource cleanup in test environments. The rollback tests demonstrate that the transaction manager properly handles exceptions and rollbacks across both databases.

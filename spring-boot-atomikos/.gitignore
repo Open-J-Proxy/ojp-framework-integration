@@ -18,3 +18,4 @@ Thumbs.db
 *.epoch
 *.log
 tm*.log
+tmlog.lck
