@@ -17,22 +17,22 @@ import java.util.Properties;
 
 @Configuration
 @EnableJpaRepositories(
-    basePackages = "com.example.atomikos.repository.mysql",
-    entityManagerFactoryRef = "mysqlEntityManagerFactory"
+    basePackages = "com.example.atomikos.repository.postgres2",
+    entityManagerFactoryRef = "postgres2EntityManagerFactory"
 )
-public class MysqlDataSourceConfig {
+public class Postgres2DataSourceConfig {
 
-    @Bean(name = "mysqlDataSourceProperties")
-    @ConfigurationProperties("spring.datasource.mysql")
-    public DataSourceProperties mysqlDataSourceProperties() {
+    @Bean(name = "postgres2DataSourceProperties")
+    @ConfigurationProperties("spring.datasource.postgres2")
+    public DataSourceProperties postgres2DataSourceProperties() {
         return new DataSourceProperties();
     }
 
-    @Bean(name = "mysqlDataSource", destroyMethod = "close")
-    public DataSource mysqlDataSource(@Qualifier("mysqlDataSourceProperties") DataSourceProperties properties) {
+    @Bean(name = "postgres2DataSource", destroyMethod = "close")
+    public DataSource postgres2DataSource(@Qualifier("postgres2DataSourceProperties") DataSourceProperties properties) {
         AtomikosDataSourceBean dataSource = new AtomikosDataSourceBean();
-        dataSource.setUniqueResourceName("mysqlDS");
-        dataSource.setXaDataSourceClassName("com.mysql.cj.jdbc.MysqlXADataSource");
+        dataSource.setUniqueResourceName("postgres2DS");
+        dataSource.setXaDataSourceClassName("org.postgresql.xa.PGXADataSource");
         
         Properties xaProperties = new Properties();
         xaProperties.setProperty("url", properties.getUrl());
@@ -47,19 +47,19 @@ public class MysqlDataSourceConfig {
         return dataSource;
     }
 
-    @Bean(name = "mysqlEntityManagerFactory")
-    public LocalContainerEntityManagerFactoryBean mysqlEntityManagerFactory(
+    @Bean(name = "postgres2EntityManagerFactory")
+    public LocalContainerEntityManagerFactoryBean postgres2EntityManagerFactory(
             EntityManagerFactoryBuilder builder,
-            @Qualifier("mysqlDataSource") DataSource dataSource) {
+            @Qualifier("postgres2DataSource") DataSource dataSource) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "create-drop");
-        properties.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+        properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.show_sql", "false");
         
         LocalContainerEntityManagerFactoryBean emf = builder
                 .dataSource(dataSource)
-                .packages("com.example.atomikos.entity.mysql")
-                .persistenceUnit("mysql")
+                .packages("com.example.atomikos.entity.postgres2")
+                .persistenceUnit("postgres2")
                 .properties(properties)
                 .jta(true)
                 .build();

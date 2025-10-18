@@ -1,9 +1,9 @@
 package com.example.atomikos.service;
 
 import com.example.atomikos.entity.postgres.Account;
-import com.example.atomikos.entity.mysql.AuditLog;
+import com.example.atomikos.entity.postgres2.AuditLog;
 import com.example.atomikos.repository.postgres.AccountRepository;
-import com.example.atomikos.repository.mysql.AuditLogRepository;
+import com.example.atomikos.repository.postgres2.AuditLogRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

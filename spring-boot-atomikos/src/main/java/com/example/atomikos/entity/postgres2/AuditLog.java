@@ -1,4 +1,4 @@
-package com.example.atomikos.entity.mysql;
+package com.example.atomikos.entity.postgres2;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;

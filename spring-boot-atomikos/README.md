@@ -1,18 +1,18 @@
 # Spring Boot Atomikos - Distributed Transaction Testing
 
-A Spring Boot application demonstrating distributed (XA) transactions using Atomikos transaction manager across PostgreSQL and MySQL databases.
+A Spring Boot application demonstrating distributed (XA) transactions using Atomikos transaction manager across two separate PostgreSQL databases.
 
 ## Overview
 
 This project focuses on validating distributed transaction behavior using:
 - **Atomikos JTA Transaction Manager** - For coordinating distributed transactions
-- **PostgreSQL** - Primary database for Account entities
-- **MySQL** - Secondary database for AuditLog entities
+- **PostgreSQL Database 1** - Primary database for Account entities
+- **PostgreSQL Database 2** - Secondary database for AuditLog entities
 - **Testcontainers** - For integration testing with real database instances
 
 ## Features
 
-- **Two-Phase Commit (2PC)** transactions across PostgreSQL and MySQL
+- **Two-Phase Commit (2PC)** transactions across two PostgreSQL databases
 - Comprehensive integration tests covering:
   - Successful commits across both databases
   - Rollback on failures  
@@ -37,8 +37,7 @@ All integration tests validate that operations on both databases are atomic:
 - **Java 17** (development) / Java 21 (target - requires environment support)
 - **Spring Boot 3.2.6**
 - **Atomikos 6.0.0** (Spring Boot 3 compatible version with Jakarta EE 9+)
-- **PostgreSQL** (via Testcontainers)
-- **MySQL** (via Testcontainers)
+- **PostgreSQL** (two separate instances via Testcontainers)
 - **JUnit 5**
 - **Testcontainers**
 
@@ -50,14 +49,14 @@ All integration tests validate that operations on both databases are atomic:
 
 ## Running Tests
 
-All tests are integration tests that use Testcontainers to spin up real PostgreSQL and MySQL instances:
+All tests are integration tests that use Testcontainers to spin up two separate PostgreSQL instances:
 
 ```bash
 mvn clean verify
 ```
 
 This will:
-1. Start PostgreSQL and MySQL containers
+1. Start two PostgreSQL containers
 2. Configure Atomikos transaction manager
 3. Run all integration tests
 4. Shut down containers
@@ -94,19 +93,19 @@ Tests connection management and isolation:
 src/main/java/com/example/atomikos/
 ├── AtomikosApplication.java                # Main application class
 ├── config/
-│   ├── PostgresDataSourceConfig.java       # PostgreSQL XA DataSource configuration
-│   ├── MysqlDataSourceConfig.java          # MySQL XA DataSource configuration
+│   ├── PostgresDataSourceConfig.java       # PostgreSQL 1 XA DataSource configuration
+│   ├── Postgres2DataSourceConfig.java      # PostgreSQL 2 XA DataSource configuration
 │   └── TransactionManagerConfig.java       # JTA Transaction Manager configuration
 ├── entity/
 │   ├── postgres/
-│   │   └── Account.java                    # Account entity
-│   └── mysql/
-│       └── AuditLog.java                   # AuditLog entity
+│   │   └── Account.java                    # Account entity (DB1)
+│   └── postgres2/
+│       └── AuditLog.java                   # AuditLog entity (DB2)
 ├── repository/
 │   ├── postgres/
-│   │   └── AccountRepository.java          # Account repository
-│   └── mysql/
-│       └── AuditLogRepository.java         # AuditLog repository
+│   │   └── AccountRepository.java          # Account repository (DB1)
+│   └── postgres2/
+│       └── AuditLogRepository.java         # AuditLog repository (DB2)
 └── service/
     └── TransactionService.java             # Business logic with @Transactional
 
@@ -119,12 +118,12 @@ src/test/java/com/example/atomikos/integration/
 
 ## Key Configuration
 
-The application uses Atomikos to coordinate XA transactions across two databases:
+The application uses Atomikos to coordinate XA transactions across two separate PostgreSQL databases:
 
-- **PostgreSQL DataSource**: Primary entity manager for Account entities
+- **PostgreSQL Database 1**: Primary entity manager for Account entities
   - Configured with `max_prepared_transactions=10` to enable XA support
-- **MySQL DataSource**: Secondary entity manager for AuditLog entities
-  - Configured with extended startup timeout for container initialization
+- **PostgreSQL Database 2**: Secondary entity manager for AuditLog entities
+  - Configured with `max_prepared_transactions=10` to enable XA support
 - **Atomikos Transaction Manager**: Coordinates 2PC across both databases
 
 Each datasource is configured as an `AtomikosDataSourceBean` with XA support.
@@ -141,23 +140,12 @@ Without this configuration, you will encounter errors like:
 org.postgresql.xa.PGXAException: Error preparing transaction
 ```
 
-### MySQL Container Startup
+### Dual PostgreSQL Configuration
 
-MySQL 8.0 containers can take longer to start and be ready for connections. The tests configure an extended startup timeout:
-```java
-.withStartupTimeout(java.time.Duration.ofMinutes(5))
-```
-
-This ensures the container has sufficient time to initialize before tests begin execution.
-
-### MySQL XA Configuration
-
-MySQL XA transactions are configured with:
-```java
-.withCommand("mysqld --transaction-isolation=READ-COMMITTED --log-bin-trust-function-creators=1")
-```
-
-The `READ-COMMITTED` isolation level is more suitable for XA transactions and helps reduce locking issues. However, MySQL's XA implementation has known limitations that may cause intermittent test failures when running multiple tests in sequence.
+Both PostgreSQL databases are configured identically with XA support. Using two PostgreSQL instances provides:
+- **Consistent XA behavior** - PostgreSQL has robust XA transaction support
+- **Reliable testing** - Avoids MySQL XA limitations and known bugs
+- **Simplified configuration** - Both databases use the same driver and settings
 
 ## Notes
 
@@ -170,16 +158,9 @@ The `READ-COMMITTED` isolation level is more suitable for XA transactions and he
 
 ## Known Issues
 
-Some integration tests may experience intermittent failures related to XA transaction prepare phase (HeurHazardException) or MySQL XA errors (`XAER_INVAL`). This is often due to:
+Tests should now run reliably with two PostgreSQL databases. PostgreSQL has mature XA transaction support and avoids the known limitations found in MySQL's XA implementation.
 
-1. **Timing issues or resource cleanup in test environments** - XA transactions require careful coordination
-2. **MySQL XA limitations** - MySQL's XA implementation has known bugs and limitations, particularly when multiple XA transactions are executed in sequence (see [MySQL Bug #73863](https://bugs.mysql.com/bug.php?id=73863))
-3. **Test isolation** - When running all tests together, MySQL XA transaction state can become corrupted between tests
-
-**Workaround**: Individual tests or small test suites generally pass successfully. The rollback and timeout tests demonstrate that the transaction manager properly handles exceptions and rollbacks across both databases.
-
-**For reliable testing**: Run tests individually or in small groups using:
-```bash
-mvn test -Dtest=DistributedTransactionSuccessIT
-mvn test -Dtest=DistributedTransactionRollbackIT
-```
+If you encounter any XA-related issues:
+1. Ensure Docker has sufficient resources (memory and CPU)
+2. Check that `max_prepared_transactions` is properly set on both PostgreSQL containers
+3. Verify that both containers are fully started before tests begin
