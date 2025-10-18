@@ -38,6 +38,7 @@ public class DistributedTransactionConnectionIT {
             .withDatabaseName("testdb")
             .withUsername("test")
             .withPassword("test")
+            .withCommand("mysqld --transaction-isolation=READ-COMMITTED --log-bin-trust-function-creators=1")
             .withStartupTimeout(java.time.Duration.ofMinutes(5));
 
     @DynamicPropertySource

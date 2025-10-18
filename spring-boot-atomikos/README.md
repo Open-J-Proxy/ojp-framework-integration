@@ -150,6 +150,15 @@ MySQL 8.0 containers can take longer to start and be ready for connections. The 
 
 This ensures the container has sufficient time to initialize before tests begin execution.
 
+### MySQL XA Configuration
+
+MySQL XA transactions are configured with:
+```java
+.withCommand("mysqld --transaction-isolation=READ-COMMITTED --log-bin-trust-function-creators=1")
+```
+
+The `READ-COMMITTED` isolation level is more suitable for XA transactions and helps reduce locking issues. However, MySQL's XA implementation has known limitations that may cause intermittent test failures when running multiple tests in sequence.
+
 ## Notes
 
 - This project is for testing distributed transactions only; it's not intended as a production application
@@ -161,4 +170,16 @@ This ensures the container has sufficient time to initialize before tests begin 
 
 ## Known Issues
 
-Some integration tests may experience intermittent failures related to XA transaction prepare phase (HeurHazardException). This is often due to timing issues or resource cleanup in test environments. The rollback tests demonstrate that the transaction manager properly handles exceptions and rollbacks across both databases.
+Some integration tests may experience intermittent failures related to XA transaction prepare phase (HeurHazardException) or MySQL XA errors (`XAER_INVAL`). This is often due to:
+
+1. **Timing issues or resource cleanup in test environments** - XA transactions require careful coordination
+2. **MySQL XA limitations** - MySQL's XA implementation has known bugs and limitations, particularly when multiple XA transactions are executed in sequence (see [MySQL Bug #73863](https://bugs.mysql.com/bug.php?id=73863))
+3. **Test isolation** - When running all tests together, MySQL XA transaction state can become corrupted between tests
+
+**Workaround**: Individual tests or small test suites generally pass successfully. The rollback and timeout tests demonstrate that the transaction manager properly handles exceptions and rollbacks across both databases.
+
+**For reliable testing**: Run tests individually or in small groups using:
+```bash
+mvn test -Dtest=DistributedTransactionSuccessIT
+mvn test -Dtest=DistributedTransactionRollbackIT
+```
