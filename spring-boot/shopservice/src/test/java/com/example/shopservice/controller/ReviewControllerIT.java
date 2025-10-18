@@ -1,13 +1,11 @@
 package com.example.shopservice.controller;
 
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.entity.Review;
-import com.example.shopservice.entity.User;
-import com.example.shopservice.repository.OrderItemRepository;
-import com.example.shopservice.repository.OrderRepository;
-import com.example.shopservice.repository.ProductRepository;
-import com.example.shopservice.repository.ReviewRepository;
-import com.example.shopservice.repository.UserRepository;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.entity.catalog.Review;
+import com.example.shopservice.entity.catalog.User;
+import com.example.shopservice.repository.catalog.ProductRepository;
+import com.example.shopservice.repository.catalog.ReviewRepository;
+import com.example.shopservice.repository.catalog.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,13 +14,17 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlConfig;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -35,10 +37,6 @@ public class ReviewControllerIT {
     @Autowired
     private ProductRepository productRepository;
     @Autowired
-    private OrderItemRepository orderItemRepository;
-    @Autowired
-    private OrderRepository orderRepository;
-    @Autowired
     private ReviewRepository reviewRepository;
     @Autowired
     private ObjectMapper objectMapper;
@@ -48,11 +46,10 @@ public class ReviewControllerIT {
 
     @BeforeEach
     void setup() {
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
         reviewRepository.deleteAll();
         userRepository.deleteAll();
         productRepository.deleteAll();
+
         User userObj = new User();
         userObj.setUsername("bob");
         userObj.setEmail("bob@example.com");

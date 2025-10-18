@@ -1,10 +1,10 @@
 package com.example.shopservice.controller;
-import com.example.shopservice.entity.Order;
-import com.example.shopservice.entity.OrderItem;
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.repository.OrderItemRepository;
-import com.example.shopservice.repository.OrderRepository;
-import com.example.shopservice.repository.ProductRepository;
+import com.example.shopservice.entity.checkout.Order;
+import com.example.shopservice.entity.checkout.OrderItem;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.repository.checkout.OrderItemRepository;
+import com.example.shopservice.repository.checkout.OrderRepository;
+import com.example.shopservice.repository.catalog.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,15 +23,15 @@ public class OrderItemController {
 
     @PostMapping
     public ResponseEntity<OrderItem> create(@PathVariable Long orderId, @RequestBody OrderItem orderItem) {
+
         Optional<Order> orderOpt = orderRepository.findById(orderId);
         if (orderOpt.isEmpty()) return ResponseEntity.badRequest().build();
-        if (orderItem.getProduct() == null || orderItem.getProduct().getId() == null)
-            return ResponseEntity.badRequest().build();
-        Optional<Product> prodOpt = productRepository.findById(orderItem.getProduct().getId());
+
+        Optional<Product> prodOpt = productRepository.findById(orderItem.getProductId());
         if (prodOpt.isEmpty()) return ResponseEntity.badRequest().build();
 
         orderItem.setOrder(orderOpt.get());
-        orderItem.setProduct(prodOpt.get());
+
         return ResponseEntity.ok(orderItemRepository.save(orderItem));
     }
 
@@ -50,14 +50,16 @@ public class OrderItemController {
 
     @PutMapping("/{itemId}")
     public ResponseEntity<OrderItem> update(@PathVariable Long orderId, @PathVariable Long itemId, @RequestBody OrderItem orderItem) {
+        if (isValidOrderItem(orderItem)) return ResponseEntity.badRequest().build();
+
         Optional<OrderItem> itemOpt = orderItemRepository.findById(itemId);
-        if (itemOpt.isEmpty() || !itemOpt.get().getOrder().getId().equals(orderId))
-            return ResponseEntity.notFound().build();
+        if (itemOpt.isEmpty() || !itemOpt.get().getOrder().getId().equals(orderId)) return ResponseEntity.notFound().build();
+
         OrderItem existing = itemOpt.get();
-        if (orderItem.getProduct() != null && orderItem.getProduct().getId() != null) {
-            Optional<Product> prodOpt = productRepository.findById(orderItem.getProduct().getId());
-            prodOpt.ifPresent(existing::setProduct);
+        if(existing.getProductId() != orderItem.getProductId()){
+            existing.setProductId(orderItem.getProductId());
         }
+
         existing.setQuantity(orderItem.getQuantity());
         return ResponseEntity.ok(orderItemRepository.save(existing));
     }
@@ -69,5 +71,10 @@ public class OrderItemController {
             return ResponseEntity.notFound().build();
         orderItemRepository.delete(itemOpt.get());
         return ResponseEntity.noContent().build();
+    }
+
+    private Boolean isValidOrderItem(OrderItem orderItem) {
+        if(orderItem.getProductId() == null) return false;
+        return productRepository.findById(orderItem.getProductId()).isEmpty();
     }
 }

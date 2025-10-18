@@ -1,6 +1,6 @@
 package com.example.shopservice.controller;
-import com.example.shopservice.entity.User;
-import com.example.shopservice.repository.UserRepository;
+import com.example.shopservice.entity.catalog.User;
+import com.example.shopservice.repository.catalog.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -1,11 +1,13 @@
 package com.example.shopservice.controller;
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.repository.ProductRepository;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.repository.catalog.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
 
 @RestController
 @RequestMapping("/products")
@@ -20,6 +22,7 @@ public class ProductController {
     public Page<Product> list(Pageable pageable) {
         return productRepository.findAll(pageable);
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<Product> get(@PathVariable Long id) {
         return productRepository.findById(id).map(ResponseEntity::ok)
@@ -35,6 +38,12 @@ public class ProductController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @PutMapping()
+    public ResponseEntity<Product> save(@RequestBody Product product) {
+        return ResponseEntity.created(URI.create("/products/" + product.getId())).build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> delete(@PathVariable Long id) {
         return productRepository.findById(id)
