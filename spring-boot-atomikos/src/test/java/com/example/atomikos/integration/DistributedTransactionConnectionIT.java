@@ -1,12 +1,16 @@
 package com.example.atomikos.integration;
 
+import com.example.atomikos.dto.CreateAccountRequest;
+import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.repository.postgres.AccountRepository;
 import com.example.atomikos.repository.postgres2.AuditLogRepository;
-import com.example.atomikos.service.TransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -19,7 +23,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext
@@ -51,7 +55,7 @@ public class DistributedTransactionConnectionIT {
     }
 
     @Autowired
-    private TransactionService transactionService;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -73,10 +77,13 @@ public class DistributedTransactionConnectionIT {
         assertTrue(postgres2Container.isRunning());
 
         // When
-        transactionService.createAccountWithAudit("ACC_CONN", "Connection Test", 
-            new BigDecimal("100.00"));
+        CreateAccountRequest request = new CreateAccountRequest(
+            "ACC_CONN", "Connection Test", new BigDecimal("100.00"));
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/accounts", request, String.class);
 
         // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, accountRepository.count());
         assertEquals(1, auditLogRepository.count());
     }
@@ -86,8 +93,11 @@ public class DistributedTransactionConnectionIT {
         // Test that multiple transactions can be handled properly
         // Given & When
         for (int i = 1; i <= 5; i++) {
-            transactionService.createAccountWithAudit("ACC" + i, "User" + i, 
-                new BigDecimal(i * 100 + ".00"));
+            CreateAccountRequest request = new CreateAccountRequest(
+                "ACC" + i, "User" + i, new BigDecimal(i * 100 + ".00"));
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/transactions/accounts", request, String.class);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
         }
 
         // Then
@@ -98,15 +108,20 @@ public class DistributedTransactionConnectionIT {
     @Test
     void testTransactionIsolation() {
         // Create initial accounts
-        transactionService.createAccountWithAudit("ACC_ISO1", "User1", new BigDecimal("1000.00"));
-        transactionService.createAccountWithAudit("ACC_ISO2", "User2", new BigDecimal("500.00"));
+        CreateAccountRequest createReq1 = new CreateAccountRequest("ACC_ISO1", "User1", new BigDecimal("1000.00"));
+        CreateAccountRequest createReq2 = new CreateAccountRequest("ACC_ISO2", "User2", new BigDecimal("500.00"));
+        restTemplate.postForEntity("/api/transactions/accounts", createReq1, String.class);
+        restTemplate.postForEntity("/api/transactions/accounts", createReq2, String.class);
         
         long initialAuditCount = auditLogRepository.count();
         
         // When - Perform transfer
-        transactionService.transferWithAudit("ACC_ISO1", "ACC_ISO2", new BigDecimal("100.00"));
+        TransferRequest transferReq = new TransferRequest("ACC_ISO1", "ACC_ISO2", new BigDecimal("100.00"));
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/transfer", transferReq, String.class);
         
         // Then - Verify isolation
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(initialAuditCount + 1, auditLogRepository.count());
         
         // Verify final balances

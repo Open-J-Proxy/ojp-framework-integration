@@ -1,14 +1,19 @@
 package com.example.atomikos.integration;
 
+import com.example.atomikos.dto.CreateAccountRequest;
+import com.example.atomikos.dto.CreateAccountWithFailureRequest;
+import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.entity.postgres.Account;
 import com.example.atomikos.entity.postgres2.AuditLog;
 import com.example.atomikos.repository.postgres.AccountRepository;
 import com.example.atomikos.repository.postgres2.AuditLogRepository;
-import com.example.atomikos.service.TransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -21,7 +26,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext
@@ -53,7 +58,7 @@ public class DistributedTransactionRollbackIT {
     }
 
     @Autowired
-    private TransactionService transactionService;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -73,13 +78,16 @@ public class DistributedTransactionRollbackIT {
         String accountNumber = "ACC999";
         String accountHolder = "Test User";
         BigDecimal balance = new BigDecimal("500.00");
+        CreateAccountWithFailureRequest request = new CreateAccountWithFailureRequest(
+            accountNumber, accountHolder, balance, true);
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            transactionService.createAccountWithAuditAndFailure(accountNumber, accountHolder, balance, true);
-        });
+        // When
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/accounts/with-failure", request, String.class);
 
-        assertEquals("Simulated failure after account creation", exception.getMessage());
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody().contains("Simulated failure after account creation"));
 
         // Verify rollback - neither database should have data
         assertEquals(0, accountRepository.count());
@@ -89,17 +97,21 @@ public class DistributedTransactionRollbackIT {
     @Test
     void testRollbackOnInsufficientBalance() {
         // Given
-        transactionService.createAccountWithAudit("ACC001", "Alice", new BigDecimal("100.00"));
-        transactionService.createAccountWithAudit("ACC002", "Bob", new BigDecimal("50.00"));
+        CreateAccountRequest createReq1 = new CreateAccountRequest("ACC001", "Alice", new BigDecimal("100.00"));
+        CreateAccountRequest createReq2 = new CreateAccountRequest("ACC002", "Bob", new BigDecimal("50.00"));
+        restTemplate.postForEntity("/api/transactions/accounts", createReq1, String.class);
+        restTemplate.postForEntity("/api/transactions/accounts", createReq2, String.class);
         
         auditLogRepository.deleteAll(); // Clear initial audit logs
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            transactionService.transferWithAudit("ACC001", "ACC002", new BigDecimal("200.00"));
-        });
+        // When
+        TransferRequest transferReq = new TransferRequest("ACC001", "ACC002", new BigDecimal("200.00"));
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/transfer", transferReq, String.class);
 
-        assertEquals("Insufficient balance", exception.getMessage());
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody().contains("Insufficient balance"));
 
         // Verify rollback - balances should remain unchanged
         Account fromAccount = accountRepository.findByAccountNumber("ACC001").orElseThrow();
@@ -115,14 +127,17 @@ public class DistributedTransactionRollbackIT {
     @Test
     void testRollbackOnInvalidAccount() {
         // Given
-        transactionService.createAccountWithAudit("ACC001", "Alice", new BigDecimal("1000.00"));
+        CreateAccountRequest createReq = new CreateAccountRequest("ACC001", "Alice", new BigDecimal("1000.00"));
+        restTemplate.postForEntity("/api/transactions/accounts", createReq, String.class);
 
-        // When & Then
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            transactionService.transferWithAudit("ACC001", "ACC999", new BigDecimal("100.00"));
-        });
+        // When
+        TransferRequest transferReq = new TransferRequest("ACC001", "ACC999", new BigDecimal("100.00"));
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/transfer", transferReq, String.class);
 
-        assertEquals("To account not found", exception.getMessage());
+        // Then
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody().contains("To account not found"));
 
         // Verify rollback - balance should remain unchanged
         Account account = accountRepository.findByAccountNumber("ACC001").orElseThrow();
@@ -138,12 +153,14 @@ public class DistributedTransactionRollbackIT {
         String accountNumber = "ACC888";
         
         // When - Simulate failure after PostgreSQL write but before MySQL write
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            transactionService.createAccountWithAuditAndFailure(accountNumber, "User", 
-                new BigDecimal("100.00"), true);
-        });
+        CreateAccountWithFailureRequest request = new CreateAccountWithFailureRequest(
+            accountNumber, "User", new BigDecimal("100.00"), true);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/accounts/with-failure", request, String.class);
 
         // Then - Verify atomicity: neither database should have data due to rollback
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertTrue(response.getBody().contains("Simulated failure after account creation"));
         assertFalse(accountRepository.findByAccountNumber(accountNumber).isPresent());
         assertEquals(0, auditLogRepository.count());
     }

@@ -47,9 +47,22 @@ All integration tests validate that operations on both databases are atomic:
 - Maven 3.8+
 - Docker (for Testcontainers)
 
+## REST API
+
+The application exposes RESTful endpoints for transaction operations:
+
+### Endpoints
+
+- **POST** `/api/transactions/accounts` - Create a new account with audit logging
+- **POST** `/api/transactions/transfer` - Transfer funds between accounts  
+- **POST** `/api/transactions/accounts/with-failure` - Create account with simulated failure (for testing rollback)
+- **POST** `/api/transactions/accounts/with-timeout` - Create account with timeout scenario
+
+All integration tests validate distributed transactions through these REST API endpoints.
+
 ## Running Tests
 
-All tests are integration tests that use Testcontainers to spin up two separate PostgreSQL instances:
+All tests are integration tests that use Testcontainers to spin up two separate PostgreSQL instances and test the REST API:
 
 ```bash
 mvn clean verify
@@ -63,26 +76,28 @@ This will:
 
 ## Integration Tests
 
+All integration tests validate distributed transactions via REST API endpoints:
+
 ### DistributedTransactionSuccessIT
-Tests successful transaction commits across both databases:
+Tests successful transaction commits across both databases via REST API:
 - Account creation with audit logging
 - Balance transfers with audit trails
 - Multiple sequential transactions
 
 ### DistributedTransactionRollbackIT
-Tests rollback scenarios:
+Tests rollback scenarios via REST API:
 - Exception-triggered rollbacks
 - Insufficient balance checks
 - Invalid account handling
 - Partial failure atomicity
 
 ### DistributedTransactionTimeoutIT
-Tests transaction timeout behavior:
+Tests transaction timeout behavior via REST API:
 - Long-running operations exceeding timeout limits
 - Proper rollback on timeout
 
 ### DistributedTransactionConnectionIT
-Tests connection management and isolation:
+Tests connection management and isolation via REST API:
 - Multiple concurrent transactions
 - Transaction isolation levels
 - Connection pooling behavior

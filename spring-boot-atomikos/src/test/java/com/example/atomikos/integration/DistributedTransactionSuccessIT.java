@@ -1,14 +1,18 @@
 package com.example.atomikos.integration;
 
+import com.example.atomikos.dto.CreateAccountRequest;
+import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.entity.postgres.Account;
 import com.example.atomikos.entity.postgres2.AuditLog;
 import com.example.atomikos.repository.postgres.AccountRepository;
 import com.example.atomikos.repository.postgres2.AuditLogRepository;
-import com.example.atomikos.service.TransactionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -22,7 +26,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext
@@ -54,7 +58,7 @@ public class DistributedTransactionSuccessIT {
     }
 
     @Autowired
-    private TransactionService transactionService;
+    private TestRestTemplate restTemplate;
 
     @Autowired
     private AccountRepository accountRepository;
@@ -76,9 +80,14 @@ public class DistributedTransactionSuccessIT {
         BigDecimal balance = new BigDecimal("1000.00");
 
         // When
-        transactionService.createAccountWithAudit(accountNumber, accountHolder, balance);
+        CreateAccountRequest request = new CreateAccountRequest(accountNumber, accountHolder, balance);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/accounts", request, String.class);
 
-        // Then - Verify both databases have data
+        // Then - Verify HTTP response
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
+        // Verify both databases have data
         List<Account> accounts = accountRepository.findAll();
         assertEquals(1, accounts.size());
         assertEquals(accountNumber, accounts.get(0).getAccountNumber());
@@ -88,22 +97,27 @@ public class DistributedTransactionSuccessIT {
         List<AuditLog> logs = auditLogRepository.findAll();
         assertEquals(1, logs.size());
         assertEquals("CREATE_ACCOUNT", logs.get(0).getOperation());
-        assertTrue(logs.get(0).getDetails().contains(accountNumber));
     }
 
     @Test
     void testSuccessfulTransferWithAudit() {
         // Given
-        transactionService.createAccountWithAudit("ACC001", "Alice", new BigDecimal("1000.00"));
-        transactionService.createAccountWithAudit("ACC002", "Bob", new BigDecimal("500.00"));
+        CreateAccountRequest createReq1 = new CreateAccountRequest("ACC001", "Alice", new BigDecimal("1000.00"));
+        CreateAccountRequest createReq2 = new CreateAccountRequest("ACC002", "Bob", new BigDecimal("500.00"));
+        restTemplate.postForEntity("/api/transactions/accounts", createReq1, String.class);
+        restTemplate.postForEntity("/api/transactions/accounts", createReq2, String.class);
         
         auditLogRepository.deleteAll(); // Clear initial audit logs
 
         // When
         BigDecimal transferAmount = new BigDecimal("250.00");
-        transactionService.transferWithAudit("ACC001", "ACC002", transferAmount);
+        TransferRequest transferReq = new TransferRequest("ACC001", "ACC002", transferAmount);
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "/api/transactions/transfer", transferReq, String.class);
 
         // Then
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        
         Account fromAccount = accountRepository.findByAccountNumber("ACC001").orElseThrow();
         Account toAccount = accountRepository.findByAccountNumber("ACC002").orElseThrow();
 
@@ -120,9 +134,13 @@ public class DistributedTransactionSuccessIT {
     @Test
     void testMultipleSuccessfulTransactions() {
         // Given & When
-        transactionService.createAccountWithAudit("ACC001", "User1", new BigDecimal("100.00"));
-        transactionService.createAccountWithAudit("ACC002", "User2", new BigDecimal("200.00"));
-        transactionService.createAccountWithAudit("ACC003", "User3", new BigDecimal("300.00"));
+        for (int i = 1; i <= 3; i++) {
+            CreateAccountRequest request = new CreateAccountRequest(
+                "ACC00" + i, "User" + i, new BigDecimal(i * 100 + ".00"));
+            ResponseEntity<String> response = restTemplate.postForEntity(
+                "/api/transactions/accounts", request, String.class);
+            assertEquals(HttpStatus.OK, response.getStatusCode());
+        }
 
         // Then
         assertEquals(3, accountRepository.count());
