@@ -37,7 +37,8 @@ public class DistributedTransactionConnectionIT {
     static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
             .withDatabaseName("testdb")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withStartupTimeout(java.time.Duration.ofMinutes(5));
 
     @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry registry) {

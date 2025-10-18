@@ -124,6 +124,7 @@ The application uses Atomikos to coordinate XA transactions across two databases
 - **PostgreSQL DataSource**: Primary entity manager for Account entities
   - Configured with `max_prepared_transactions=10` to enable XA support
 - **MySQL DataSource**: Secondary entity manager for AuditLog entities
+  - Configured with extended startup timeout for container initialization
 - **Atomikos Transaction Manager**: Coordinates 2PC across both databases
 
 Each datasource is configured as an `AtomikosDataSourceBean` with XA support.
@@ -139,6 +140,15 @@ Without this configuration, you will encounter errors like:
 ```
 org.postgresql.xa.PGXAException: Error preparing transaction
 ```
+
+### MySQL Container Startup
+
+MySQL 8.0 containers can take longer to start and be ready for connections. The tests configure an extended startup timeout:
+```java
+.withStartupTimeout(java.time.Duration.ofMinutes(5))
+```
+
+This ensures the container has sufficient time to initialize before tests begin execution.
 
 ## Notes
 
