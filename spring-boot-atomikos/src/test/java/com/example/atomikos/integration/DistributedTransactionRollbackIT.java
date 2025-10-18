@@ -32,7 +32,8 @@ public class DistributedTransactionRollbackIT {
     static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:15-alpine")
             .withDatabaseName("testdb")
             .withUsername("test")
-            .withPassword("test");
+            .withPassword("test")
+            .withCommand("postgres -c max_prepared_transactions=10");
 
     @Container
     static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")

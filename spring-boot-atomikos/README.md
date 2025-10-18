@@ -122,10 +122,23 @@ src/test/java/com/example/atomikos/integration/
 The application uses Atomikos to coordinate XA transactions across two databases:
 
 - **PostgreSQL DataSource**: Primary entity manager for Account entities
+  - Configured with `max_prepared_transactions=10` to enable XA support
 - **MySQL DataSource**: Secondary entity manager for AuditLog entities
 - **Atomikos Transaction Manager**: Coordinates 2PC across both databases
 
 Each datasource is configured as an `AtomikosDataSourceBean` with XA support.
+
+### PostgreSQL XA Configuration
+
+PostgreSQL requires `max_prepared_transactions` to be set to a non-zero value to support XA transactions. In the integration tests, this is configured via:
+```java
+.withCommand("postgres -c max_prepared_transactions=10")
+```
+
+Without this configuration, you will encounter errors like:
+```
+org.postgresql.xa.PGXAException: Error preparing transaction
+```
 
 ## Notes
 
