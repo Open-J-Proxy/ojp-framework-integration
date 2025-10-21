@@ -1,13 +1,15 @@
 package com.example.shopservice.controller;
+
+import com.example.shopservice.entity.catalog.Product;
 import com.example.shopservice.entity.checkout.Order;
 import com.example.shopservice.entity.checkout.OrderItem;
-import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.repository.catalog.ProductRepository;
 import com.example.shopservice.repository.checkout.OrderItemRepository;
 import com.example.shopservice.repository.checkout.OrderRepository;
-import com.example.shopservice.repository.catalog.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 import java.util.Optional;
 

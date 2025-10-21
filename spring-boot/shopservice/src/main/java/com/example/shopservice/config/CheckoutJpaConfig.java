@@ -32,7 +32,6 @@ public class CheckoutJpaConfig {
         return new DataSourceProperties();
     }
 
-    // Sem pool local: use DriverManagerDataSource (ou SimpleDriverDataSource)
     @Bean(name = "checkoutDataSource") @Primary
     public DataSource checkoutDataSource(@Qualifier("checkoutProps") DataSourceProperties p) {
         var ds = new org.springframework.jdbc.datasource.DriverManagerDataSource();

@@ -75,14 +75,28 @@ The API will be available at [http://localhost:8080/](http://localhost:8080/).
 |            | `/users/{id}`            | GET, PUT, DELETE    |
 | Products   | `/products`              | GET, POST           |
 |            | `/products/{id}`         | GET, PUT, DELETE    |
+| Reviews    | `/reviews`               | GET, POST           |
+|            | `/reviews/{id}`          | GET, PUT, DELETE    |
 | Orders     | `/orders`                | GET, POST           |
 |            | `/orders/{id}`           | GET, PUT, DELETE    |
 | OrderItems | `/orders/{orderId}/items`| GET, POST           |
 |            | `/orders/{orderId}/items/{itemId}` | GET, PUT, DELETE |
-| Reviews    | `/reviews`               | GET, POST           |
-|            | `/reviews/{id}`          | GET, PUT, DELETE    |
 
 All endpoints accept and return JSON.
+
+---
+
+## SpringBoot Multi-DataSource Configuration
+
+The business context has two domains with different database performance requirements:
+- catalog: list products and user reviews; need high-performance read operations
+- checkout: process orders and order items; need standard performance for transactional operations
+
+To accommodate these requirements, the application defines two separate DataSource configurations — one per domain:
+  - `CatalogDataSourceConfig.java` for catalog domain
+  - `CheckoutDataSourceConfig.java` for checkout domain
+
+Each configuration class defines its own OJP named datasource connection pool.
 
 ---
 
