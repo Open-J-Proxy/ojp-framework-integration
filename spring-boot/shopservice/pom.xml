@@ -8,21 +8,16 @@
     <packaging>jar</packaging>
     <name>shopservice</name>
     <description>Spring Boot Shop Service</description>
-
     <properties>
         <java.version>21</java.version>
         <spring-boot.version>3.2.6</spring-boot.version>
-        <!-- Don't change this version, it is the standard build done by .github/workflows/main.yml for integration tests -->
-        <open-j-proxy.version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</open-j-proxy.version>
     </properties>
-
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.6</version>
         <relativePath/>
     </parent>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -61,7 +56,8 @@
         <dependency>
             <groupId>org.openjproxy</groupId>
             <artifactId>ojp-jdbc-driver</artifactId>
-            <version>${open-j-proxy.version}</version>
+            <!-- Don't change this version, it is the standard build done by .github/workflows/main.yml for integration tests -->
+            <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
         </dependency>
         <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
         <!--<dependency>
@@ -70,7 +66,6 @@
             <version>42.7.5</version>
         </dependency>-->
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
