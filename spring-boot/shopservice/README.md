@@ -89,8 +89,8 @@ All endpoints accept and return JSON.
 ## SpringBoot Multi-DataSource Configuration
 
 The business context has two domains with different database performance requirements:
-- catalog: list products and user reviews; need high-performance read operations
-- checkout: process orders and order items; need standard performance for transactional operations
+- catalog: list products and user reviews; requires high-performance read operations
+- checkout: process orders and order items; requires standard performance for transactional operations
 
 To accommodate these requirements, the application defines two separate DataSource configurations — one per domain:
   - `CatalogDataSourceConfig.java` for catalog domain and use named OJP datasource connection pool
