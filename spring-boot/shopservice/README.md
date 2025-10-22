@@ -93,10 +93,8 @@ The business context has two domains with different database performance require
 - checkout: process orders and order items; need standard performance for transactional operations
 
 To accommodate these requirements, the application defines two separate DataSource configurations — one per domain:
-  - `CatalogDataSourceConfig.java` for catalog domain
-  - `CheckoutDataSourceConfig.java` for checkout domain
-
-Each configuration class defines its own OJP named datasource connection pool.
+  - `CatalogDataSourceConfig.java` for catalog domain and use named OJP datasource connection pool
+  - `CheckoutDataSourceConfig.java` for checkout domain and use default OJP datasource connection pool
 
 ---
 
