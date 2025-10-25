@@ -53,12 +53,11 @@ jobs:
         working-directory: ojp
 
       - name: Run (ojp-server)
-        run: mvn verify -pl ojp-server -U -Prun-ojp-server > ojp-server.log 2>&1 &
+        run: mvn verify -pl ojp-server -U -Prun-ojp-server > /tmp/ojp-server.log 2>&1 &
         working-directory: ojp
 
       - name: Wait for ojp-server to start
         run: sleep 10
-
 
       - name: Run OJP Spring Boot Integration tests (shopservice)
         run: mvn clean verify
@@ -74,4 +73,8 @@ jobs:
 
       - name: Run OJP Spring Boot with Atomikos Integration tests (shopservice)
         run: mvn clean verify
-        working-directory: spring-boot-atomikos
+        working-directory: spring-boot-
+
+      - name: Show ojp-server.log
+        if: always()  # ensures it runs even if previous steps fail
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
