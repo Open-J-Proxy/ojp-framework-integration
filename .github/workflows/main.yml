@@ -71,3 +71,7 @@ jobs:
       - name: Run OJP Micronaut Integration tests (shopservice)
         run: mvn clean verify
         working-directory: micronaut/shopservice
+
+      - name: Run OJP Spring Boot with Atomikos Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: spring-boot-atomikos

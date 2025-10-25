@@ -48,11 +48,13 @@ public class DistributedTransactionRollbackIT {
 
     @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.postgres.url", postgresContainer::getJdbcUrl);
+        String urlPostgres = postgresContainer.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres)]_postgresql");
+        registry.add("spring.datasource.postgres.url", () -> urlPostgres);
         registry.add("spring.datasource.postgres.username", postgresContainer::getUsername);
         registry.add("spring.datasource.postgres.password", postgresContainer::getPassword);
 
-        registry.add("spring.datasource.postgres2.url", postgres2Container::getJdbcUrl);
+        String urlPostgres2 = postgres2Container.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres2)]_postgresql");
+        registry.add("spring.datasource.postgres2.url", () -> urlPostgres2);
         registry.add("spring.datasource.postgres2.username", postgres2Container::getUsername);
         registry.add("spring.datasource.postgres2.password", postgres2Container::getPassword);
     }

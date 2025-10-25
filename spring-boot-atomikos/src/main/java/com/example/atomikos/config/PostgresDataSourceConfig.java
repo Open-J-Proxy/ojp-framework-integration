@@ -35,7 +35,7 @@ public class PostgresDataSourceConfig {
     public DataSource postgresDataSource(@Qualifier("postgresDataSourceProperties") DataSourceProperties properties) {
         AtomikosDataSourceBean dataSource = new AtomikosDataSourceBean();
         dataSource.setUniqueResourceName("postgresDS");
-        dataSource.setXaDataSourceClassName("org.postgresql.xa.PGXADataSource");
+        dataSource.setXaDataSourceClassName("org.openjproxy.jdbc.xa.OjpXADataSource");
         
         Properties xaProperties = new Properties();
         xaProperties.setProperty("url", properties.getUrl());

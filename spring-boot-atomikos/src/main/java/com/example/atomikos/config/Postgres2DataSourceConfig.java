@@ -32,7 +32,7 @@ public class Postgres2DataSourceConfig {
     public DataSource postgres2DataSource(@Qualifier("postgres2DataSourceProperties") DataSourceProperties properties) {
         AtomikosDataSourceBean dataSource = new AtomikosDataSourceBean();
         dataSource.setUniqueResourceName("postgres2DS");
-        dataSource.setXaDataSourceClassName("org.postgresql.xa.PGXADataSource");
+        dataSource.setXaDataSourceClassName("org.openjproxy.jdbc.xa.OjpXADataSource");
         
         Properties xaProperties = new Properties();
         xaProperties.setProperty("url", properties.getUrl());

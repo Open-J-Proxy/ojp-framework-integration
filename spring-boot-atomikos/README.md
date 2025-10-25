@@ -24,7 +24,7 @@ This project focuses on validating distributed transaction behavior using:
 
 ### Entities
 - **Account** (PostgreSQL) - Represents bank accounts with balance tracking
-- **AuditLog** (MySQL) - Records all transaction operations for audit purposes
+- **AuditLog** (PostgreSQL) - Records all transaction operations for audit purposes
 
 ### Transaction Scenarios
 All integration tests validate that operations on both databases are atomic:
@@ -159,7 +159,6 @@ org.postgresql.xa.PGXAException: Error preparing transaction
 
 Both PostgreSQL databases are configured identically with XA support. Using two PostgreSQL instances provides:
 - **Consistent XA behavior** - PostgreSQL has robust XA transaction support
-- **Reliable testing** - Avoids MySQL XA limitations and known bugs
 - **Simplified configuration** - Both databases use the same driver and settings
 
 ## Notes
@@ -173,7 +172,7 @@ Both PostgreSQL databases are configured identically with XA support. Using two 
 
 ## Known Issues
 
-Tests should now run reliably with two PostgreSQL databases. PostgreSQL has mature XA transaction support and avoids the known limitations found in MySQL's XA implementation.
+Tests should now run reliably with two PostgreSQL databases. PostgreSQL has mature XA transaction support.
 
 If you encounter any XA-related issues:
 1. Ensure Docker has sufficient resources (memory and CPU)
