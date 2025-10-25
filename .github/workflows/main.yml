@@ -2,18 +2,23 @@ name: Spring Boot/Micronaut/Quarkus Integration
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
     branches: [ main ]
   repository_dispatch:
-    types: [ojp-updated]
+    types: [ ojp-updated ]
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
+
+    # Use a temp Maven repository so each run downloads fresh libs (no stale cache).
+    env:
+      MAVEN_OPTS: "-Dmaven.repo.local=${{ runner.temp }}/m2"
+      OJP_SNAPSHOT_VER: "0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION"
+
     steps:
-      - name: Checkout shopservice code
+      - name: Checkout app repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -27,51 +32,101 @@ jobs:
           path: ojp
 
       - name: Set up JDK 22
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '22'
+          # Intentionally NOT caching Maven to guarantee fresh downloads
 
-      # Clean Maven repository to avoid stale ojp-jdbc-driver artifacts
-      - name: Clean ojp-jdbc-driver from local Maven repository
-        run: rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
-
-      # Build and install ojp-jdbc-driver with integration test SNAPSHOT version
-      # This version will be used by all frameworks (Spring Boot, Quarkus, Micronaut)
-      - name: Set ojp-jdbc-driver version to SNAPSHOT
+      # Make sure no stale OJP artifacts get picked up
+      - name: Purge local OJP artifacts (defense in depth)
         run: |
-          mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl ojp-jdbc-driver -DgenerateBackupPoms=false
+          rm -rf ~/.m2/repository/org/openjproxy || true
+          rm -rf "$RUNNER_TEMP/m2/org/openjproxy" || true
+
+      - name: Set OJP driver version to snapshot used in integration
         working-directory: ojp
+        run: |
+          mvn -U -B versions:set \
+            -DnewVersion="${OJP_SNAPSHOT_VER}" \
+            -pl ojp-jdbc-driver \
+            -DgenerateBackupPoms=false
 
-      - name: Build and install ojp-jdbc-driver with SNAPSHOT version
-        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests
+      - name: Build and install OJP driver (and deps) with snapshot
         working-directory: ojp
+        run: |
+          mvn -U -B clean install \
+            -pl ojp-jdbc-driver -am \
+            -DskipTests
 
-      # Install remaining ojp modules
-      - name: Install remaining ojp modules
-        run: mvn clean install -DskipTests
+      - name: Build/Install remaining OJP modules (no tests)
         working-directory: ojp
+        run: mvn -U -B clean install -DskipTests
 
-      - name: Run (ojp-server)
-        run: mvn verify -pl ojp-server -Prun-ojp-server > ojp-server.log 2>&1 &
+      - name: Start OJP server
         working-directory: ojp
+        run: |
+          # Start in background and log to file
+          (mvn -B verify -pl ojp-server -Prun-ojp-server > "$GITHUB_WORKSPACE/ojp-server.log" 2>&1 & echo $! > ojp-server.pid)
 
-      - name: Wait for ojp-server to start
-        run: sleep 10
+      - name: Wait for OJP server to become healthy
+        shell: bash
+        run: |
+          # Try to detect a ready endpoint if available; fall back to port probe.
+          # Adjust URL/port if your server differs.
+          set -e
+          URL="http://127.0.0.1:8080/actuator/health"
+          for i in {1..60}; do
+            if curl -fsS "$URL" > /dev/null 2>&1; then
+              echo "OJP server is up."
+              exit 0
+            fi
+            # Fallback: port check
+            if (command -v nc >/dev/null 2>&1 && nc -z 127.0.0.1 8080) || (ss -ltn '( sport = :8080 )' | grep -q 8080); then
+              echo "Port 8080 is listening."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "OJP server did not become ready in time. Dumping last 200 log lines:" >&2
+          tail -n 200 "$GITHUB_WORKSPACE/ojp-server.log" || true
+          exit 1
 
+      - name: Run all framework integration tests (DRY loop)
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -a MODULES=(
+            "spring-boot/shopservice"
+            "quarkus/shopservice"
+            "micronaut/shopservice"
+            "spring-boot-atomikos"
+          )
 
-      - name: Run OJP Spring Boot Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: spring-boot/shopservice
+          status=0
+          for m in "${MODULES[@]}"; do
+            echo "=== Running mvn verify in $m ==="
+            # -U ensures snapshot/plugins are rechecked; -fae to continue after failures and collect them
+            if ! mvn -U -B -fae clean verify -f "$m/pom.xml"; then
+              echo "Module failed: $m"
+              status=1
+            fi
+          done
 
-      - name: Run OJP Quarkus Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: quarkus/shopservice
+          exit $status
 
-      - name: Run OJP Micronaut Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: micronaut/shopservice
+      - name: Upload OJP server logs (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojp-server-log
+          path: ojp-server.log
+          if-no-files-found: warn
 
-      - name: Run OJP Spring Boot with Atomikos Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: spring-boot-atomikos
+      - name: Stop OJP server (always)
+        if: always()
+        working-directory: ojp
+        run: |
+          if [[ -f ojp-server.pid ]]; then
+            kill "$(cat ojp-server.pid)" 2>/dev/null || true
+          fi
