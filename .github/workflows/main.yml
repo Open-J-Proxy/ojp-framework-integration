@@ -73,7 +73,7 @@ jobs:
 
       - name: Run OJP Spring Boot with Atomikos Integration tests (shopservice)
         run: mvn clean verify
-        working-directory: spring-boot-
+        working-directory: spring-boot-atomikos
 
       - name: Show ojp-server.log
         if: always()  # ensures it runs even if previous steps fail
