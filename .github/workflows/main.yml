@@ -1,4 +1,4 @@
-name: Spring Boot/Micronaut/Quarkus Integration
+name: Spring Boot/Micronaut/Quarkus/Spring Boot Atomikos Integration
 
 on:
   push:
@@ -44,16 +44,16 @@ jobs:
         working-directory: ojp
 
       - name: Build and install ojp-jdbc-driver with SNAPSHOT version
-        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests
+        run: mvn clean install -U -pl ojp-jdbc-driver -am -DskipTests
         working-directory: ojp
 
       # Install remaining ojp modules
       - name: Install remaining ojp modules
-        run: mvn clean install -DskipTests
+        run: mvn clean install -U -DskipTests
         working-directory: ojp
 
       - name: Run (ojp-server)
-        run: mvn verify -pl ojp-server -Prun-ojp-server > ojp-server.log 2>&1 &
+        run: mvn verify -pl ojp-server -U -Prun-ojp-server > ojp-server.log 2>&1 &
         working-directory: ojp
 
       - name: Wait for ojp-server to start
@@ -71,3 +71,7 @@ jobs:
       - name: Run OJP Micronaut Integration tests (shopservice)
         run: mvn clean verify
         working-directory: micronaut/shopservice
+
+      - name: Run OJP Spring Boot with Atomikos Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: spring-boot-atomikos
