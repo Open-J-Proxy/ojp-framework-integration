@@ -1,13 +1,13 @@
 package com.example.shopservice.controller;
 
-import com.example.shopservice.entity.Order;
-import com.example.shopservice.entity.OrderItem;
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.entity.User;
-import com.example.shopservice.repository.OrderItemRepository;
-import com.example.shopservice.repository.OrderRepository;
-import com.example.shopservice.repository.ProductRepository;
-import com.example.shopservice.repository.UserRepository;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.entity.catalog.User;
+import com.example.shopservice.entity.checkout.Order;
+import com.example.shopservice.entity.checkout.OrderItem;
+import com.example.shopservice.repository.catalog.ProductRepository;
+import com.example.shopservice.repository.catalog.UserRepository;
+import com.example.shopservice.repository.checkout.OrderItemRepository;
+import com.example.shopservice.repository.checkout.OrderRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,13 +20,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@org.springframework.context.annotation.Import(config.SqlInitConfig.class)
 public class OrderItemControllerIT {
     @Autowired
     private MockMvc mockMvc;
@@ -49,8 +51,6 @@ public class OrderItemControllerIT {
     void setup() {
         orderItemRepository.deleteAll();
         orderRepository.deleteAll();
-        productRepository.deleteAll();
-        userRepository.deleteAll();
         
         User userObj = new User();
         userObj.setUsername("testuser");
@@ -63,7 +63,7 @@ public class OrderItemControllerIT {
         product = productRepository.save(prodObj);
         
         Order orderObj = new Order();
-        orderObj.setUser(user);
+        orderObj.setUserId(user.getId());
         order = orderRepository.save(orderObj);
     }
 
@@ -71,7 +71,7 @@ public class OrderItemControllerIT {
     void testCreateOrderItem() throws Exception {
         String itemJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":3
         }
         """.formatted(product.getId());
@@ -82,7 +82,7 @@ public class OrderItemControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.quantity").value(3))
-                .andExpect(jsonPath("$.product.id").value(product.getId()));
+                .andExpect(jsonPath("$.productId").value(product.getId()));
     }
 
     @Test
@@ -90,7 +90,7 @@ public class OrderItemControllerIT {
         // First create an order item
         String itemJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":2
         }
         """.formatted(product.getId());
@@ -112,7 +112,7 @@ public class OrderItemControllerIT {
         // First create an order item
         String itemJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":4
         }
         """.formatted(product.getId());
@@ -137,7 +137,7 @@ public class OrderItemControllerIT {
         // First create an order item
         String itemJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":1
         }
         """.formatted(product.getId());
@@ -153,7 +153,7 @@ public class OrderItemControllerIT {
         // Then update the item
         String updateJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":5
         }
         """.formatted(product.getId());
@@ -170,7 +170,7 @@ public class OrderItemControllerIT {
         // First create an order item
         String itemJson = """
         {
-          "product":{"id":%d},
+          "productId":%d,
           "quantity":1
         }
         """.formatted(product.getId());

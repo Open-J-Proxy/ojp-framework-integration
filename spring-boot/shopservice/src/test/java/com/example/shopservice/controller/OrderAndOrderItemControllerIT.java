@@ -1,11 +1,12 @@
 package com.example.shopservice.controller;
 
-import com.example.shopservice.entity.Order;
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.entity.User;
-import com.example.shopservice.repository.OrderRepository;
-import com.example.shopservice.repository.ProductRepository;
-import com.example.shopservice.repository.UserRepository;
+import com.example.shopservice.entity.checkout.Order;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.entity.catalog.User;
+import com.example.shopservice.repository.checkout.OrderItemRepository;
+import com.example.shopservice.repository.checkout.OrderRepository;
+import com.example.shopservice.repository.catalog.ProductRepository;
+import com.example.shopservice.repository.catalog.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,8 @@ public class OrderAndOrderItemControllerIT {
     @Autowired
     private OrderRepository orderRepository;
     @Autowired
+    private OrderItemRepository orderItemRepository;
+    @Autowired
     private ObjectMapper objectMapper;
 
     private User user;
@@ -42,9 +45,11 @@ public class OrderAndOrderItemControllerIT {
 
     @BeforeEach
     void setup() {
+        orderItemRepository.deleteAll();
         orderRepository.deleteAll();
         userRepository.deleteAll();
         productRepository.deleteAll();
+
         User userObj = new User();
         userObj.setUsername("bob");
         userObj.setEmail("bob@example.com");
@@ -65,10 +70,10 @@ public class OrderAndOrderItemControllerIT {
     void createOrderWithItemsAndGetItems() throws Exception {
         String orderJson = """
         {
-          "user":{"id":%d},
+          "userId":%d,
           "orderItems":[
-            {"product":{"id":%d},"quantity":2},
-            {"product":{"id":%d},"quantity":1}
+            {"productId":%d,"quantity":2},
+            {"productId":%d,"quantity":1}
           ]
         }
         """.formatted(user.getId(), product1.getId(), product2.getId());
@@ -95,9 +100,13 @@ public class OrderAndOrderItemControllerIT {
     void testDeleteOrder() throws Exception {
         String orderJson = """
         {
-          "user":{"id":%d}
+          "userId":%d,
+          "orderItems":[
+            {"productId":%d,"quantity":2},
+            {"productId":%d,"quantity":1}
+          ]
         }
-        """.formatted(user.getId());
+        """.formatted(user.getId(), product1.getId(), product2.getId());
 
         String response = mockMvc.perform(post("/orders")
                 .contentType(MediaType.APPLICATION_JSON)

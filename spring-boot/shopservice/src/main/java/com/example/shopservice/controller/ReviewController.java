@@ -1,10 +1,10 @@
 package com.example.shopservice.controller;
-import com.example.shopservice.entity.Product;
-import com.example.shopservice.entity.Review;
-import com.example.shopservice.entity.User;
-import com.example.shopservice.repository.ProductRepository;
-import com.example.shopservice.repository.ReviewRepository;
-import com.example.shopservice.repository.UserRepository;
+import com.example.shopservice.entity.catalog.Product;
+import com.example.shopservice.entity.catalog.Review;
+import com.example.shopservice.entity.catalog.User;
+import com.example.shopservice.repository.catalog.ProductRepository;
+import com.example.shopservice.repository.catalog.ReviewRepository;
+import com.example.shopservice.repository.catalog.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

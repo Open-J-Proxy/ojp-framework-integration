@@ -1,5 +1,5 @@
-package com.example.shopservice.repository;
-import com.example.shopservice.entity.Review;
+package com.example.shopservice.repository.catalog;
+import com.example.shopservice.entity.catalog.Review;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;

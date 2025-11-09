@@ -1,5 +1,5 @@
-package com.example.shopservice.repository;
-import com.example.shopservice.entity.OrderItem;
+package com.example.shopservice.repository.checkout;
+import com.example.shopservice.entity.checkout.OrderItem;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 public interface OrderItemRepository extends JpaRepository<OrderItem, Long> {

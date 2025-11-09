@@ -1,4 +1,4 @@
-package com.example.shopservice.entity;
+package com.example.shopservice.entity.catalog;
 
 import jakarta.persistence.*;
 
