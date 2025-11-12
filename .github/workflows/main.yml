@@ -53,7 +53,7 @@ jobs:
         working-directory: ojp
 
       - name: Clear previous OJP server logs
-        run: rm /tmp/ojp-server.log
+        run: rm -f /tmp/ojp-server.log
         working-directory: ojp
 
       - name: Run (ojp-server)
