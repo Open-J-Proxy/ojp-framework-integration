@@ -30,8 +30,6 @@ import java.util.Map;
 )
 public class PostgresDataSourceConfig {
 
-    private final GenericXADataSourceWrapper xaDataSourceWrapper = new GenericXADataSourceWrapper();
-
     @Primary
     @Bean(name = "postgresDataSourceProperties")
     @ConfigurationProperties("spring.datasource.postgres")
@@ -53,9 +51,12 @@ public class PostgresDataSourceConfig {
 
     @Primary
     @Bean(name = "postgresDataSource")
-    public DataSource postgresDataSource(@Qualifier("postgresXADataSource") XADataSource xaDataSource) throws SQLException {
+    public DataSource postgresDataSource(
+            @Qualifier("postgresXADataSource") XADataSource xaDataSource,
+            GenericXADataSourceWrapper xaDataSourceWrapper) throws SQLException {
         // Wrap the XA DataSource with Narayana's wrapper for transaction management
         // This does NOT add connection pooling - it only adds XA transaction support
+        // The wrapper is auto-configured by Narayana and injected by Spring
         return xaDataSourceWrapper.wrapDataSource(xaDataSource);
     }
 
