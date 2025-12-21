@@ -1,5 +1,6 @@
 package com.example.narayana.config;
 
+import dev.snowdrop.boot.narayana.core.jdbc.GenericXADataSourceWrapper;
 import org.openjproxy.jdbc.xa.OjpXADataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
@@ -12,13 +13,15 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
 import javax.sql.DataSource;
+import javax.sql.XADataSource;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Configuration for the first PostgreSQL datasource.
  * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
- * Narayana manages the XA transactions without an intermediate connection pool.
+ * Narayana wraps the XADataSource for transaction management via GenericXADataSourceWrapper.
  */
 @Configuration
 @EnableJpaRepositories(
@@ -35,15 +38,24 @@ public class PostgresDataSourceConfig {
     }
 
     @Primary
-    @Bean(name = "postgresDataSource")
-    public DataSource postgresDataSource(@Qualifier("postgresDataSourceProperties") DataSourceProperties properties) {
+    @Bean(name = "postgresXADataSource")
+    public XADataSource postgresXADataSource(@Qualifier("postgresDataSourceProperties") DataSourceProperties properties) {
         // Using OJP XA DataSource directly without pooling (as required)
-        OjpXADataSource dataSource = new OjpXADataSource();
-        dataSource.setUrl(properties.getUrl());
-        dataSource.setUser(properties.getUsername());
-        dataSource.setPassword(properties.getPassword());
+        OjpXADataSource xaDataSource = new OjpXADataSource();
+        xaDataSource.setUrl(properties.getUrl());
+        xaDataSource.setUser(properties.getUsername());
+        xaDataSource.setPassword(properties.getPassword());
         
-        return dataSource;
+        return xaDataSource;
+    }
+
+    @Primary
+    @Bean(name = "postgresDataSource")
+    public DataSource postgresDataSource(@Qualifier("postgresXADataSource") XADataSource xaDataSource) throws SQLException {
+        // Wrap the XA DataSource with Narayana's wrapper for transaction management
+        // This does NOT add connection pooling - it only adds XA transaction support
+        GenericXADataSourceWrapper wrapper = new GenericXADataSourceWrapper();
+        return wrapper.wrapDataSource(xaDataSource);
     }
 
     @Primary
