@@ -1,4 +1,4 @@
-name: Spring Boot/Micronaut/Quarkus/Spring Boot Atomikos Integration
+name: Spring Boot/Micronaut/Quarkus/Spring Boot Atomikos/Spring Boot Narayana Integration
 
 on:
   push:
@@ -78,6 +78,10 @@ jobs:
       - name: Run OJP Spring Boot with Atomikos Integration tests
         run: mvn clean verify
         working-directory: spring-boot-atomikos
+
+      - name: Run OJP Spring Boot with Narayana Integration tests
+        run: mvn clean verify
+        working-directory: spring-boot-narayana
 
       - name: Show ojp-server.log
         if: always()  # ensures it runs even if previous steps fail
