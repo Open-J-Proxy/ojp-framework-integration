@@ -36,7 +36,7 @@ All integration tests validate that operations on both databases are atomic:
 
 - **Java 17** (development) / Java 21 (target - requires environment support)
 - **Spring Boot 3.2.6**
-- **Narayana 7.0.2.Final** - JBoss transaction manager with Jakarta EE support
+- **Narayana** - JBoss transaction manager via Snowdrop Spring Boot Starter 3.2.0
 - **PostgreSQL** (two separate instances via Testcontainers)
 - **JUnit 5**
 - **Testcontainers**
