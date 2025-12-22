@@ -51,6 +51,9 @@ public class PostgresDataSourceConfig {
         
         return xaDataSource;
     }
+
+    @Primary
+    @Bean(name = "postgresDataSource")
     public DataSource postgresDataSource(@Qualifier("postgresXADataSource") XADataSource xaDataSource) {
         // Wrap XADataSource in a simple DataSource adapter
         // This allows Spring/Hibernate to work with it while maintaining no connection pooling
