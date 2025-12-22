@@ -1,4 +1,4 @@
-name: Spring Boot/Micronaut/Quarkus/Spring Boot Atomikos/Spring Boot Narayana Integration
+name: Java Frameworks Integration Tests
 
 on:
   push:
