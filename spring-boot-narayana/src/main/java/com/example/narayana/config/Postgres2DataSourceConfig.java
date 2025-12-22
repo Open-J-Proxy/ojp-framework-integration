@@ -52,16 +52,16 @@ public class Postgres2DataSourceConfig {
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.show_sql", "false");
         
-        // Configure JPA to use JTA with XADataSource
-        // Don't use dataSource() - use jtaDataSource for XA transactions
-        LocalContainerEntityManagerFactoryBean emf = builder
-                .packages("com.example.narayana.entity.postgres2")
-                .persistenceUnit("postgres2")
-                .properties(properties)
-                .jta(true)
-                .build();
-        // Set the JTA datasource - in JTA mode, Hibernate will use this XADataSource
+        // Create EntityManagerFactory manually to properly configure XADataSource
+        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
         emf.setJtaDataSource(xaDataSource);
+        emf.setPackagesToScan("com.example.narayana.entity.postgres2");
+        emf.setPersistenceUnitName("postgres2");
+        emf.setJpaPropertyMap(properties);
+        
+        // Configure for JTA transactions
+        emf.setJpaVendorAdapter(builder.dataSource(xaDataSource).build().getJpaVendorAdapter());
+        
         return emf;
     }
 }
