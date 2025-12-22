@@ -10,14 +10,20 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
+import javax.sql.DataSource;
 import javax.sql.XADataSource;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * Configuration for the second PostgreSQL datasource.
  * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
- * JPA EntityManagerFactory uses JTA mode with XADataSource.
+ * Wraps XADataSource in a simple DataSource adapter for Spring compatibility.
  */
 @Configuration
 @EnableJpaRepositories(
@@ -43,25 +49,94 @@ public class Postgres2DataSourceConfig {
         return xaDataSource;
     }
 
+    @Bean(name = "postgres2DataSource")
+    public DataSource postgres2DataSource(@Qualifier("postgres2XADataSource") XADataSource xaDataSource) {
+        // Wrap XADataSource in a simple DataSource adapter
+        // This allows Spring/Hibernate to work with it while maintaining no connection pooling
+        return new XADataSourceAdapter(xaDataSource);
+    }
+
     @Bean(name = "postgres2EntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean postgres2EntityManagerFactory(
             EntityManagerFactoryBuilder builder,
-            @Qualifier("postgres2XADataSource") XADataSource xaDataSource) {
+            @Qualifier("postgres2DataSource") DataSource dataSource) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "create-drop");
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.show_sql", "false");
         
-        // Create EntityManagerFactory manually to properly configure XADataSource
-        LocalContainerEntityManagerFactoryBean emf = new LocalContainerEntityManagerFactoryBean();
-        emf.setJtaDataSource(xaDataSource);
-        emf.setPackagesToScan("com.example.narayana.entity.postgres2");
-        emf.setPersistenceUnitName("postgres2");
-        emf.setJpaPropertyMap(properties);
-        
-        // Configure for JTA transactions
-        emf.setJpaVendorAdapter(builder.dataSource(xaDataSource).build().getJpaVendorAdapter());
-        
+        LocalContainerEntityManagerFactoryBean emf = builder
+                .dataSource(dataSource)
+                .packages("com.example.narayana.entity.postgres2")
+                .persistenceUnit("postgres2")
+                .properties(properties)
+                .jta(true)
+                .build();
+        emf.setJtaDataSource(dataSource);
         return emf;
+    }
+
+    /**
+     * Simple DataSource adapter that wraps an XADataSource.
+     * Does NOT provide connection pooling - connections are obtained directly from XADataSource.
+     */
+    private static class XADataSourceAdapter implements DataSource {
+        private final XADataSource xaDataSource;
+
+        public XADataSourceAdapter(XADataSource xaDataSource) {
+            this.xaDataSource = xaDataSource;
+        }
+
+        @Override
+        public Connection getConnection() throws SQLException {
+            return xaDataSource.getXAConnection().getConnection();
+        }
+
+        @Override
+        public Connection getConnection(String username, String password) throws SQLException {
+            return xaDataSource.getXAConnection(username, password).getConnection();
+        }
+
+        @Override
+        public PrintWriter getLogWriter() throws SQLException {
+            return xaDataSource.getLogWriter();
+        }
+
+        @Override
+        public void setLogWriter(PrintWriter out) throws SQLException {
+            xaDataSource.setLogWriter(out);
+        }
+
+        @Override
+        public void setLoginTimeout(int seconds) throws SQLException {
+            xaDataSource.setLoginTimeout(seconds);
+        }
+
+        @Override
+        public int getLoginTimeout() throws SQLException {
+            return xaDataSource.getLoginTimeout();
+        }
+
+        @Override
+        public Logger getParentLogger() throws SQLFeatureNotSupportedException {
+            return xaDataSource.getParentLogger();
+        }
+
+        @Override
+        public <T> T unwrap(Class<T> iface) throws SQLException {
+            if (iface.isInstance(this)) {
+                return iface.cast(this);
+            }
+            if (iface.isInstance(xaDataSource)) {
+                return iface.cast(xaDataSource);
+            }
+            throw new SQLException("DataSource of type [" + getClass().getName() +
+                    "] cannot be unwrapped as [" + iface.getName() + "]");
+        }
+
+        @Override
+        public boolean isWrapperFor(Class<?> iface) throws SQLException {
+            return iface.isInstance(this) || iface.isInstance(xaDataSource);
+        }
     }
 }
