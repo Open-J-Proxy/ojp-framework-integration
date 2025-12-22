@@ -19,8 +19,22 @@ import java.util.Map;
 
 /**
  * Configuration for the second PostgreSQL datasource.
+ * 
  * Uses PostgreSQL XA DataSource with Narayana's GenericXADataSourceWrapper.
- * Connection pooling is disabled - direct XA datasource usage with proper XA enlistment.
+ * Connection pooling is DISABLED - direct XA datasource usage.
+ * 
+ * WHY THE WRAPPER IS NEEDED:
+ * 1. JPA/Hibernate API requires a DataSource interface, not XADataSource
+ * 2. GenericXADataSourceWrapper:
+ *    - Implements DataSource interface (required by JPA)
+ *    - Registers XADataSource with Narayana for XA recovery
+ *    - Enlists XA resources in JTA transactions
+ *    - Does NOT add connection pooling (connections come directly from XADataSource)
+ * 3. Without this wrapper, XA resources would not be properly enlisted in transactions,
+ *    causing rollback failures
+ * 
+ * This is similar to Atomikos' AtomikosDataSourceBean, but Narayana's wrapper is simpler
+ * and doesn't force connection pooling (Atomikos requires pooling, Narayana doesn't).
  */
 @Configuration
 @EnableJpaRepositories(

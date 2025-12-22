@@ -1,0 +1,196 @@
+{
+  "groups": [
+    {
+      "name": "narayana",
+      "type": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.messaginghub",
+      "type": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "sourceMethod": "getMessaginghub()"
+    }
+  ],
+  "properties": [
+    {
+      "name": "narayana.commit-markable-resource-j-n-d-i-names",
+      "type": "java.util.List<java.lang.String>",
+      "description": "JNDI names of CommitMarkableResource instances.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.default-timeout",
+      "type": "java.lang.Integer",
+      "description": "Transaction timeout in seconds.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": 60
+    },
+    {
+      "name": "narayana.expiry-scan-interval",
+      "type": "java.lang.Integer",
+      "description": "Interval on which the ObjectStore will be scanned for expired items, in hours.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": 12
+    },
+    {
+      "name": "narayana.expiry-scanners",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Comma-separated list of expiry scanners.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": "com.arjuna.ats.internal.arjuna.recovery.ExpiredTransactionStatusManagerScanner"
+    },
+    {
+      "name": "narayana.last-resource-optimisation-interface",
+      "type": "java.lang.String",
+      "description": "Interface used for last resource commit optimisation.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": "org.jboss.tm.LastResource"
+    },
+    {
+      "name": "narayana.log-dir",
+      "type": "java.lang.String",
+      "description": "Transaction object store directory.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.messaginghub.block-if-session-pool-is-full",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "narayana.messaginghub.block-if-session-pool-is-full-timeout",
+      "type": "java.time.Duration",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": "-1ms"
+    },
+    {
+      "name": "narayana.messaginghub.connection-check-interval",
+      "type": "java.time.Duration",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": "-1ms"
+    },
+    {
+      "name": "narayana.messaginghub.connection-idle-timeout",
+      "type": "java.time.Duration",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": "30s"
+    },
+    {
+      "name": "narayana.messaginghub.enabled",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "narayana.messaginghub.max-connections",
+      "type": "java.lang.Integer",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": 1
+    },
+    {
+      "name": "narayana.messaginghub.max-sessions-per-connection",
+      "type": "java.lang.Integer",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": 500
+    },
+    {
+      "name": "narayana.messaginghub.name",
+      "type": "java.lang.String",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties"
+    },
+    {
+      "name": "narayana.messaginghub.use-anonymous-producers",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "narayana.messaginghub.use-provider-j-m-s-context",
+      "type": "java.lang.Boolean",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.MessagingHubConnectionFactoryProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "narayana.node-identifier",
+      "type": "java.lang.String",
+      "description": "Unique node identifier.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": "1"
+    },
+    {
+      "name": "narayana.one-phase-commit",
+      "type": "java.lang.Boolean",
+      "description": "Enable one phase commit optimization.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "narayana.periodic-recovery-period",
+      "type": "java.lang.Integer",
+      "description": "Interval in which periodic recovery scans are performed in seconds.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": 120
+    },
+    {
+      "name": "narayana.recovery-backoff-period",
+      "type": "java.lang.Integer",
+      "description": "Back off period between first and second phases of the recovery scan in seconds.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": 10
+    },
+    {
+      "name": "narayana.recovery-db-credentials",
+      "type": "dev.snowdrop.boot.narayana.core.properties.RecoveryCredentialsProperties",
+      "description": "Database credentials to be used by recovery manager.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.recovery-jms-credentials",
+      "type": "dev.snowdrop.boot.narayana.core.properties.RecoveryCredentialsProperties",
+      "description": "JMS credentials to be used by recovery manager.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.recovery-modules",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Comma-separated list of recovery modules.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.shorten-node-identifier-if-necessary",
+      "type": "java.lang.Boolean",
+      "description": "Shorten node identifier if exceed a length of 28 bytes.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": false
+    },
+    {
+      "name": "narayana.xa-recovery-nodes",
+      "type": "java.util.List<java.lang.String>",
+      "description": "XA recovery nodes.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.xa-resource-orphan-filters",
+      "type": "java.util.List<java.lang.String>",
+      "description": "Comma-separated list of orphan filters.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties"
+    },
+    {
+      "name": "narayana.xa-resource-record-wrapping-plugin",
+      "type": "java.lang.String",
+      "description": "Wrapping plugin to map from XAResourceWrapper to XAResourceRecord.",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "defaultValue": "com.arjuna.ats.internal.jbossatx.jta.XAResourceRecordWrappingPluginImpl"
+    },
+    {
+      "name": "narayana.transaction-manager-id",
+      "type": "java.lang.String",
+      "sourceType": "dev.snowdrop.boot.narayana.core.properties.NarayanaProperties",
+      "deprecated": true,
+      "deprecation": {}
+    }
+  ],
+  "hints": []
+}
