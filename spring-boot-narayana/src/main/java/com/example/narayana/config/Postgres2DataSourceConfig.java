@@ -10,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
-import javax.sql.DataSource;
 import javax.sql.XADataSource;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,7 +17,7 @@ import java.util.Map;
 /**
  * Configuration for the second PostgreSQL datasource.
  * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
- * The XADataSource is used directly - Narayana will handle XA transaction coordination.
+ * JPA EntityManagerFactory uses JTA mode with XADataSource.
  */
 @Configuration
 @EnableJpaRepositories(
@@ -53,15 +52,16 @@ public class Postgres2DataSourceConfig {
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.show_sql", "false");
         
-        // Use XADataSource directly as DataSource - Spring's JTA support will handle it
+        // Configure JPA to use JTA with XADataSource
+        // Don't use dataSource() - use jtaDataSource for XA transactions
         LocalContainerEntityManagerFactoryBean emf = builder
-                .dataSource((DataSource) xaDataSource)
                 .packages("com.example.narayana.entity.postgres2")
                 .persistenceUnit("postgres2")
                 .properties(properties)
                 .jta(true)
                 .build();
-        emf.setJtaDataSource((DataSource) xaDataSource);
+        // Set the JTA datasource - in JTA mode, Hibernate will use this XADataSource
+        emf.setJtaDataSource(xaDataSource);
         return emf;
     }
 }
