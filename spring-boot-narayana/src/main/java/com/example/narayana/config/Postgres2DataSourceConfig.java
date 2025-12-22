@@ -13,7 +13,6 @@ import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
 import javax.sql.DataSource;
 import javax.sql.XADataSource;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -49,7 +48,7 @@ public class Postgres2DataSourceConfig {
     @Bean(name = "postgres2DataSource")
     public DataSource postgres2DataSource(
             @Qualifier("postgres2XADataSource") XADataSource xaDataSource,
-            GenericXADataSourceWrapper xaDataSourceWrapper) throws SQLException {
+            GenericXADataSourceWrapper xaDataSourceWrapper) throws Exception {
         // Wrap the XA DataSource with Narayana's wrapper for transaction management
         // This does NOT add connection pooling - it only adds XA transaction support
         // The wrapper is auto-configured by Narayana and injected by Spring
