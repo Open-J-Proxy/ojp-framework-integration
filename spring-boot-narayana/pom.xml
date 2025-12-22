@@ -47,7 +47,7 @@
         <dependency>
             <groupId>org.openjproxy</groupId>
             <artifactId>ojp-jdbc-driver</artifactId>
-            <version>0.1.0</version>
+            <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
         </dependency>
 
         <!-- Testing -->
