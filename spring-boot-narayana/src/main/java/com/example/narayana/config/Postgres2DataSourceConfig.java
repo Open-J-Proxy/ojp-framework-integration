@@ -1,6 +1,5 @@
 package com.example.narayana.config;
 
-import dev.snowdrop.boot.narayana.core.jdbc.GenericXADataSourceWrapper;
 import org.openjproxy.jdbc.xa.OjpXADataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
@@ -19,7 +18,7 @@ import java.util.Map;
 /**
  * Configuration for the second PostgreSQL datasource.
  * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
- * Narayana wraps the XADataSource for transaction management via GenericXADataSourceWrapper.
+ * The XADataSource is used directly - Narayana will handle XA transaction coordination.
  */
 @Configuration
 @EnableJpaRepositories(
@@ -45,33 +44,24 @@ public class Postgres2DataSourceConfig {
         return xaDataSource;
     }
 
-    @Bean(name = "postgres2DataSource")
-    public DataSource postgres2DataSource(
-            @Qualifier("postgres2XADataSource") XADataSource xaDataSource,
-            GenericXADataSourceWrapper xaDataSourceWrapper) throws Exception {
-        // Wrap the XA DataSource with Narayana's wrapper for transaction management
-        // This does NOT add connection pooling - it only adds XA transaction support
-        // The wrapper is auto-configured by Narayana and injected by Spring
-        return xaDataSourceWrapper.wrapDataSource(xaDataSource);
-    }
-
     @Bean(name = "postgres2EntityManagerFactory")
     public LocalContainerEntityManagerFactoryBean postgres2EntityManagerFactory(
             EntityManagerFactoryBuilder builder,
-            @Qualifier("postgres2DataSource") DataSource dataSource) {
+            @Qualifier("postgres2XADataSource") XADataSource xaDataSource) {
         Map<String, Object> properties = new HashMap<>();
         properties.put("hibernate.hbm2ddl.auto", "create-drop");
         properties.put("hibernate.dialect", "org.hibernate.dialect.PostgreSQLDialect");
         properties.put("hibernate.show_sql", "false");
         
+        // Use XADataSource directly as DataSource - Spring's JTA support will handle it
         LocalContainerEntityManagerFactoryBean emf = builder
-                .dataSource(dataSource)
+                .dataSource((DataSource) xaDataSource)
                 .packages("com.example.narayana.entity.postgres2")
                 .persistenceUnit("postgres2")
                 .properties(properties)
                 .jta(true)
                 .build();
-        emf.setJtaDataSource(dataSource);
+        emf.setJtaDataSource((DataSource) xaDataSource);
         return emf;
     }
 }
