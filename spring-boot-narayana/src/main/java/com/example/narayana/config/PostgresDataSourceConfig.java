@@ -1,6 +1,6 @@
 package com.example.narayana.config;
 
-import org.openjproxy.jdbc.xa.OjpXADataSource;
+import org.postgresql.xa.PGXADataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -9,7 +9,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
-import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 
 import javax.sql.DataSource;
@@ -24,7 +23,7 @@ import java.util.logging.Logger;
 
 /**
  * Configuration for the first PostgreSQL datasource.
- * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
+ * Uses PostgreSQL XA DataSource directly WITHOUT connection pooling for testing.
  * Wraps XADataSource in a simple DataSource adapter for Spring compatibility.
  */
 @Configuration
@@ -44,17 +43,14 @@ public class PostgresDataSourceConfig {
     @Primary
     @Bean(name = "postgresXADataSource")
     public XADataSource postgresXADataSource(@Qualifier("postgresDataSourceProperties") DataSourceProperties properties) {
-        // Using OJP XA DataSource directly without pooling (as required)
-        OjpXADataSource xaDataSource = new OjpXADataSource();
+        // Using PostgreSQL XA DataSource directly without pooling (for testing)
+        PGXADataSource xaDataSource = new PGXADataSource();
         xaDataSource.setUrl(properties.getUrl());
         xaDataSource.setUser(properties.getUsername());
         xaDataSource.setPassword(properties.getPassword());
         
         return xaDataSource;
     }
-
-    @Primary
-    @Bean(name = "postgresDataSource")
     public DataSource postgresDataSource(@Qualifier("postgresXADataSource") XADataSource xaDataSource) {
         // Wrap XADataSource in a simple DataSource adapter
         // This allows Spring/Hibernate to work with it while maintaining no connection pooling

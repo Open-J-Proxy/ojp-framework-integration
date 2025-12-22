@@ -1,6 +1,6 @@
 package com.example.narayana.config;
 
-import org.openjproxy.jdbc.xa.OjpXADataSource;
+import org.postgresql.xa.PGXADataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -22,7 +22,7 @@ import java.util.logging.Logger;
 
 /**
  * Configuration for the second PostgreSQL datasource.
- * Uses OJP XA DataSource directly WITHOUT connection pooling as required.
+ * Uses PostgreSQL XA DataSource directly WITHOUT connection pooling for testing.
  * Wraps XADataSource in a simple DataSource adapter for Spring compatibility.
  */
 @Configuration
@@ -40,8 +40,8 @@ public class Postgres2DataSourceConfig {
 
     @Bean(name = "postgres2XADataSource")
     public XADataSource postgres2XADataSource(@Qualifier("postgres2DataSourceProperties") DataSourceProperties properties) {
-        // Using OJP XA DataSource directly without pooling (as required)
-        OjpXADataSource xaDataSource = new OjpXADataSource();
+        // Using PostgreSQL XA DataSource directly without pooling (for testing)
+        PGXADataSource xaDataSource = new PGXADataSource();
         xaDataSource.setUrl(properties.getUrl());
         xaDataSource.setUser(properties.getUsername());
         xaDataSource.setPassword(properties.getPassword());
