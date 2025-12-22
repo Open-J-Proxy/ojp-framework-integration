@@ -19,7 +19,7 @@ public class TransactionService {
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void createAccountWithAudit(String accountNumber, String accountHolder, BigDecimal balance) {
         Account account = new Account(accountNumber, accountHolder, balance);
         accountRepository.save(account);
@@ -28,7 +28,7 @@ public class TransactionService {
         auditLogRepository.save(log);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void transferWithAudit(String fromAccountNumber, String toAccountNumber, BigDecimal amount) {
         Account fromAccount = accountRepository.findByAccountNumber(fromAccountNumber)
                 .orElseThrow(() -> new RuntimeException("From account not found"));
@@ -50,7 +50,7 @@ public class TransactionService {
         auditLogRepository.save(log);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void createAccountWithAuditAndFailure(String accountNumber, String accountHolder, 
                                                    BigDecimal balance, boolean failAfterAccount) {
         Account account = new Account(accountNumber, accountHolder, balance);
