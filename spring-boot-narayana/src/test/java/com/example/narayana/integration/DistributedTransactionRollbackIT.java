@@ -48,15 +48,13 @@ public class DistributedTransactionRollbackIT {
 
     @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry registry) {
-        String urlPostgres = postgresContainer.getJdbcUrl();
-        String ojpUrlPostgres = "jdbc:ojp[" + urlPostgres + "]_postgresql://" + postgresContainer.getHost() + ":" + postgresContainer.getFirstMappedPort() + "/" + postgresContainer.getDatabaseName();
-        registry.add("spring.datasource.postgres.url", () -> ojpUrlPostgres);
+        String urlPostgres = postgresContainer.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres)]_postgresql");
+        registry.add("spring.datasource.postgres.url", () -> urlPostgres);
         registry.add("spring.datasource.postgres.username", postgresContainer::getUsername);
         registry.add("spring.datasource.postgres.password", postgresContainer::getPassword);
 
-        String urlPostgres2 = postgres2Container.getJdbcUrl();
-        String ojpUrlPostgres2 = "jdbc:ojp[" + urlPostgres2 + "]_postgresql://" + postgres2Container.getHost() + ":" + postgres2Container.getFirstMappedPort() + "/" + postgres2Container.getDatabaseName();
-        registry.add("spring.datasource.postgres2.url", () -> ojpUrlPostgres2);
+        String urlPostgres2 = postgres2Container.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres2)]_postgresql");
+        registry.add("spring.datasource.postgres2.url", () -> urlPostgres2);
         registry.add("spring.datasource.postgres2.username", postgres2Container::getUsername);
         registry.add("spring.datasource.postgres2.password", postgres2Container::getPassword);
     }
