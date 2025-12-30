@@ -54,8 +54,8 @@ jobs:
 
       # Download JDBC drivers required by OJP server
       - name: Download JDBC drivers
-        run: bash download-drivers.sh
-        working-directory: ojp/ojp-server
+        run: bash ojp-server/download-drivers.sh
+        working-directory: ojp
 
       - name: Clear previous OJP server logs
         run: rm -f /tmp/ojp-server.log
