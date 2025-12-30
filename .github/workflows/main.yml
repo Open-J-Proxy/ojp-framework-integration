@@ -52,6 +52,11 @@ jobs:
         run: mvn clean install -U -DskipTests
         working-directory: ojp
 
+      # Download JDBC drivers required by OJP server
+      - name: Download JDBC drivers
+        run: bash download-drivers.sh
+        working-directory: ojp/ojp-server
+
       - name: Clear previous OJP server logs
         run: rm -f /tmp/ojp-server.log
         working-directory: ojp
