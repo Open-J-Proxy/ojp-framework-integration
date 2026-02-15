@@ -53,6 +53,11 @@ public class CatalogJpaConfig {
             @Qualifier("catalogDataSource") DataSource ds,
             @Qualifier("catalogVendorProps") Map<String, Object> vendorProps) {
 
+        // For tests: ensure schema is created automatically
+        if (!vendorProps.containsKey("hibernate.hbm2ddl.auto")) {
+            vendorProps.put("hibernate.hbm2ddl.auto", "create-drop");
+        }
+        
         return builder
                 .dataSource(ds)
                 .packages("com.example.shopservice.entity.catalog")
