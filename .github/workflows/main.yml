@@ -96,8 +96,8 @@ jobs:
         run: mvn clean verify
         working-directory: spring-boot-atomikos
 
-      - name: Run OJP Spring Boot with Narayana Integration tests
-        run: mvn clean verify
+      - name: Run OJP Spring Boot with Narayana Integration tests (DEBUG MODE)
+        run: mvn -X clean verify -Dorg.slf4j.simpleLogger.log.org.testcontainers=DEBUG
         working-directory: spring-boot-narayana
 
       - name: Show ojp-server.log
