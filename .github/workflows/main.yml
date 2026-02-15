@@ -96,11 +96,9 @@ jobs:
         run: mvn clean verify
         working-directory: spring-boot-atomikos
 
-      - name: Run OJP Spring Boot with Narayana Integration tests (DEBUG MODE)
-        run: mvn -X clean verify -Dorg.slf4j.simpleLogger.log.org.testcontainers=DEBUG
+      - name: Run OJP Spring Boot with Narayana Integration tests
+        run: mvn clean verify
         working-directory: spring-boot-narayana
-        env:
-          DOCKER_HOST: unix:///var/run/docker.sock
 
       - name: Show ojp-server.log
         if: always()  # ensures it runs even if previous steps fail
