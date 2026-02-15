@@ -16,7 +16,7 @@
         <java.version>17</java.version>
         <spring-boot.version>3.2.6</spring-boot.version>
         <atomikos.version>6.0.0</atomikos.version>
-        <testcontainers.version>1.19.8</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
 
     <parent>
@@ -25,6 +25,19 @@
         <version>3.2.6</version>
         <relativePath/>
     </parent>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Override docker-java version to support Docker API 1.44+ -->
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-bom</artifactId>
+                <version>3.7.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Spring Boot Starters -->
