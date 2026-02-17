@@ -21,6 +21,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @MicronautTest
 public class UserControllerIT {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    
     @Inject
     @Client("/")
     HttpClient client;
@@ -57,8 +59,7 @@ public class UserControllerIT {
         assertEquals("alice", created.getUsername());
         assertEquals("alice@example.com", created.getEmail());
         assertNotNull(created.getCreatedAt());
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-        assertEquals("2024-01-15T10:30:00", created.getCreatedAt().format(formatter));
+        assertEquals("2024-01-15T10:30:00", created.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test
@@ -82,8 +83,7 @@ public class UserControllerIT {
         assertEquals("bob", retrieved.getUsername());
         assertEquals("bob@example.com", retrieved.getEmail());
         assertNotNull(retrieved.getCreatedAt());
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-        assertEquals("2024-01-16T14:20:00", retrieved.getCreatedAt().format(formatter));
+        assertEquals("2024-01-16T14:20:00", retrieved.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test

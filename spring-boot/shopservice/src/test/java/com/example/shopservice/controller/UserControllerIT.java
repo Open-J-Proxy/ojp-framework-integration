@@ -25,6 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @org.springframework.context.annotation.Import(config.SqlInitConfig.class)
 public class UserControllerIT {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -50,8 +52,7 @@ public class UserControllerIT {
                 .andExpect(jsonPath("$.createdAt").exists());
 
         User user = userRepository.findAll().get(0);
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-        assertEquals("2024-01-15T10:30:00", user.getCreatedAt().format(formatter));
+        assertEquals("2024-01-15T10:30:00", user.getCreatedAt().format(DATE_TIME_FORMATTER));
         
         mockMvc.perform(get("/users/" + user.getId()))
                 .andExpect(status().isOk())
@@ -59,7 +60,7 @@ public class UserControllerIT {
                 .andExpect(jsonPath("$.createdAt").exists());
         
         User retrievedUser = userRepository.findById(user.getId()).orElseThrow();
-        assertEquals("2024-01-15T10:30:00", retrievedUser.getCreatedAt().format(formatter));
+        assertEquals("2024-01-15T10:30:00", retrievedUser.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test

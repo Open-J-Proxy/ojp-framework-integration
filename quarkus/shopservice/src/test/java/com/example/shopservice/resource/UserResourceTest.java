@@ -5,6 +5,9 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class UserResourceTest {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     @Test
     @Order(1)
@@ -19,7 +23,7 @@ public class UserResourceTest {
         User user = new User();
         user.username = "alice";
         user.email = "alice@example.com";
-        user.createdAt = java.time.LocalDateTime.parse("2024-01-15T10:30:00");
+        user.createdAt = LocalDateTime.parse("2024-01-15T10:30:00");
 
         given()
                 .contentType(ContentType.JSON)
@@ -40,7 +44,7 @@ public class UserResourceTest {
         Long id =
                 given()
                         .contentType(ContentType.JSON)
-                        .body(new User() {{ username = "bob"; email = "bob@example.com"; createdAt = java.time.LocalDateTime.parse("2024-01-16T14:20:00"); }})
+                        .body(new User() {{ username = "bob"; email = "bob@example.com"; createdAt = LocalDateTime.parse("2024-01-16T14:20:00"); }})
                         .when()
                         .post("/users")
                         .then()
@@ -56,9 +60,8 @@ public class UserResourceTest {
                 .extract().jsonPath().getString("createdAt");
         
         // Parse and format to ensure consistent comparison
-        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse(retrievedCreatedAt);
-        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-        assertEquals("2024-01-16T14:20:00", dateTime.format(formatter));
+        LocalDateTime dateTime = LocalDateTime.parse(retrievedCreatedAt);
+        assertEquals("2024-01-16T14:20:00", dateTime.format(DATE_TIME_FORMATTER));
     }
 
     @Test
