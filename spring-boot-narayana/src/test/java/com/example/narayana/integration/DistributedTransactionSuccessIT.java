@@ -95,6 +95,7 @@ public class DistributedTransactionSuccessIT {
         assertEquals(accountNumber, accounts.get(0).getAccountNumber());
         assertEquals(accountHolder, accounts.get(0).getAccountHolder());
         assertEquals(0, balance.compareTo(accounts.get(0).getBalance()));
+        assertNotNull(accounts.get(0).getCreatedAt());
 
         List<AuditLog> logs = auditLogRepository.findAll();
         assertEquals(1, logs.size());
@@ -125,6 +126,8 @@ public class DistributedTransactionSuccessIT {
 
         assertEquals(0, new BigDecimal("750.00").compareTo(fromAccount.getBalance()));
         assertEquals(0, new BigDecimal("750.00").compareTo(toAccount.getBalance()));
+        assertNotNull(fromAccount.getCreatedAt());
+        assertNotNull(toAccount.getCreatedAt());
 
         List<AuditLog> logs = auditLogRepository.findAll();
         assertEquals(1, logs.size());

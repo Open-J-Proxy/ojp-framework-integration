@@ -12,6 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -21,6 +25,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @org.springframework.context.annotation.Import(config.SqlInitConfig.class)
 public class UserControllerIT {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -36,18 +42,25 @@ public class UserControllerIT {
 
     @Test
     void testCreateAndGetUser() throws Exception {
-        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\"}";
+        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\",\"createdAt\":\"2024-01-15T10:30:00\"}";
         mockMvc.perform(post("/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.username").value("alice"));
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.createdAt").exists());
 
         User user = userRepository.findAll().get(0);
+        assertEquals("2024-01-15T10:30:00", user.getCreatedAt().format(DATE_TIME_FORMATTER));
+        
         mockMvc.perform(get("/users/" + user.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("alice@example.com"));
+                .andExpect(jsonPath("$.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.createdAt").exists());
+        
+        User retrievedUser = userRepository.findById(user.getId()).orElseThrow();
+        assertEquals("2024-01-15T10:30:00", retrievedUser.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test

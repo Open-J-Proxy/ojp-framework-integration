@@ -15,10 +15,14 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.format.DateTimeFormatter;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 @MicronautTest
 public class UserControllerIT {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    
     @Inject
     @Client("/")
     HttpClient client;
@@ -42,7 +46,7 @@ public class UserControllerIT {
 
     @Test
     void testCreateUser() throws Exception {
-        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\"}";
+        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\",\"createdAt\":\"2024-01-15T10:30:00\"}";
         var response = client.toBlocking().exchange(
             HttpRequest.POST("/users", json)
                 .contentType(MediaType.APPLICATION_JSON),
@@ -54,11 +58,13 @@ public class UserControllerIT {
         assertNotNull(created.getId());
         assertEquals("alice", created.getUsername());
         assertEquals("alice@example.com", created.getEmail());
+        assertNotNull(created.getCreatedAt());
+        assertEquals("2024-01-15T10:30:00", created.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test
     void testGetUser() throws Exception {
-        String json = "{\"username\":\"bob\",\"email\":\"bob@example.com\"}";
+        String json = "{\"username\":\"bob\",\"email\":\"bob@example.com\",\"createdAt\":\"2024-01-16T14:20:00\"}";
         var response = client.toBlocking().exchange(
             HttpRequest.POST("/users", json)
                 .contentType(MediaType.APPLICATION_JSON),
@@ -76,6 +82,8 @@ public class UserControllerIT {
         User retrieved = getResponse.body();
         assertEquals("bob", retrieved.getUsername());
         assertEquals("bob@example.com", retrieved.getEmail());
+        assertNotNull(retrieved.getCreatedAt());
+        assertEquals("2024-01-16T14:20:00", retrieved.getCreatedAt().format(DATE_TIME_FORMATTER));
     }
 
     @Test

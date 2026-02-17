@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Service
 public class TransactionService {
@@ -22,6 +23,7 @@ public class TransactionService {
     @Transactional(rollbackFor = Exception.class)
     public void createAccountWithAudit(String accountNumber, String accountHolder, BigDecimal balance) {
         Account account = new Account(accountNumber, accountHolder, balance);
+        account.setCreatedAt(LocalDateTime.now());
         accountRepository.save(account);
         
         AuditLog log = new AuditLog("CREATE_ACCOUNT", "Created account: " + accountNumber);
@@ -54,6 +56,7 @@ public class TransactionService {
     public void createAccountWithAuditAndFailure(String accountNumber, String accountHolder, 
                                                    BigDecimal balance, boolean failAfterAccount) {
         Account account = new Account(accountNumber, accountHolder, balance);
+        account.setCreatedAt(LocalDateTime.now());
         accountRepository.save(account);
         
         if (failAfterAccount) {
@@ -68,6 +71,7 @@ public class TransactionService {
     public void createAccountWithTimeout(String accountNumber, String accountHolder, BigDecimal balance) 
             throws InterruptedException {
         Account account = new Account(accountNumber, accountHolder, balance);
+        account.setCreatedAt(LocalDateTime.now());
         accountRepository.save(account);
         
         // Simulate long-running operation
