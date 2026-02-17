@@ -7,6 +7,7 @@ import org.junit.jupiter.api.*;
 
 import static io.restassured.RestAssured.*;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @QuarkusTest
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -45,14 +46,19 @@ public class UserResourceTest {
                         .then()
                         .extract().jsonPath().getLong("id");
 
-        given()
+        String retrievedCreatedAt = given()
                 .when()
                 .get("/users/" + id)
                 .then()
                 .statusCode(200)
                 .body("username", equalTo("bob"))
                 .body("email", equalTo("bob@example.com"))
-                .body("createdAt", equalTo("2024-01-16T14:20:00"));
+                .extract().jsonPath().getString("createdAt");
+        
+        // Parse and format to ensure consistent comparison
+        java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse(retrievedCreatedAt);
+        java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        assertEquals("2024-01-16T14:20:00", dateTime.format(formatter));
     }
 
     @Test

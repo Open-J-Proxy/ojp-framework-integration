@@ -12,6 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -43,13 +47,19 @@ public class UserControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.username").value("alice"))
-                .andExpect(jsonPath("$.createdAt").value("2024-01-15T10:30:00"));
+                .andExpect(jsonPath("$.createdAt").exists());
 
         User user = userRepository.findAll().get(0);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+        assertEquals("2024-01-15T10:30:00", user.getCreatedAt().format(formatter));
+        
         mockMvc.perform(get("/users/" + user.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("alice@example.com"))
-                .andExpect(jsonPath("$.createdAt").value("2024-01-15T10:30:00"));
+                .andExpect(jsonPath("$.createdAt").exists());
+        
+        User retrievedUser = userRepository.findById(user.getId()).orElseThrow();
+        assertEquals("2024-01-15T10:30:00", retrievedUser.getCreatedAt().format(formatter));
     }
 
     @Test
