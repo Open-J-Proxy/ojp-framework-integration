@@ -42,7 +42,7 @@ public class UserControllerIT {
 
     @Test
     void testCreateUser() throws Exception {
-        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\"}";
+        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\",\"createdAt\":\"2024-01-15T10:30:00\"}";
         var response = client.toBlocking().exchange(
             HttpRequest.POST("/users", json)
                 .contentType(MediaType.APPLICATION_JSON),
@@ -54,11 +54,13 @@ public class UserControllerIT {
         assertNotNull(created.getId());
         assertEquals("alice", created.getUsername());
         assertEquals("alice@example.com", created.getEmail());
+        assertNotNull(created.getCreatedAt());
+        assertEquals("2024-01-15T10:30:00", created.getCreatedAt().toString());
     }
 
     @Test
     void testGetUser() throws Exception {
-        String json = "{\"username\":\"bob\",\"email\":\"bob@example.com\"}";
+        String json = "{\"username\":\"bob\",\"email\":\"bob@example.com\",\"createdAt\":\"2024-01-16T14:20:00\"}";
         var response = client.toBlocking().exchange(
             HttpRequest.POST("/users", json)
                 .contentType(MediaType.APPLICATION_JSON),
@@ -76,6 +78,8 @@ public class UserControllerIT {
         User retrieved = getResponse.body();
         assertEquals("bob", retrieved.getUsername());
         assertEquals("bob@example.com", retrieved.getEmail());
+        assertNotNull(retrieved.getCreatedAt());
+        assertEquals("2024-01-16T14:20:00", retrieved.getCreatedAt().toString());
     }
 
     @Test

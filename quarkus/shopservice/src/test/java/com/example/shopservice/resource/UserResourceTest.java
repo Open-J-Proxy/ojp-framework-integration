@@ -18,6 +18,7 @@ public class UserResourceTest {
         User user = new User();
         user.username = "alice";
         user.email = "alice@example.com";
+        user.createdAt = java.time.LocalDateTime.parse("2024-01-15T10:30:00");
 
         given()
                 .contentType(ContentType.JSON)
@@ -28,7 +29,8 @@ public class UserResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("username", equalTo("alice"))
-                .body("email", equalTo("alice@example.com"));
+                .body("email", equalTo("alice@example.com"))
+                .body("createdAt", notNullValue());
     }
 
     @Test
@@ -37,7 +39,7 @@ public class UserResourceTest {
         Long id =
                 given()
                         .contentType(ContentType.JSON)
-                        .body(new User() {{ username = "bob"; email = "bob@example.com"; }})
+                        .body(new User() {{ username = "bob"; email = "bob@example.com"; createdAt = java.time.LocalDateTime.parse("2024-01-16T14:20:00"); }})
                         .when()
                         .post("/users")
                         .then()
@@ -49,7 +51,8 @@ public class UserResourceTest {
                 .then()
                 .statusCode(200)
                 .body("username", equalTo("bob"))
-                .body("email", equalTo("bob@example.com"));
+                .body("email", equalTo("bob@example.com"))
+                .body("createdAt", equalTo("2024-01-16T14:20:00"));
     }
 
     @Test

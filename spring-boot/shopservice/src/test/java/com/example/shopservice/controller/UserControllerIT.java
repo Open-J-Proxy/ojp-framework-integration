@@ -36,18 +36,20 @@ public class UserControllerIT {
 
     @Test
     void testCreateAndGetUser() throws Exception {
-        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\"}";
+        String json = "{\"username\":\"alice\",\"email\":\"alice@example.com\",\"createdAt\":\"2024-01-15T10:30:00\"}";
         mockMvc.perform(post("/users")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.username").value("alice"));
+                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.createdAt").value("2024-01-15T10:30:00"));
 
         User user = userRepository.findAll().get(0);
         mockMvc.perform(get("/users/" + user.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.email").value("alice@example.com"));
+                .andExpect(jsonPath("$.email").value("alice@example.com"))
+                .andExpect(jsonPath("$.createdAt").value("2024-01-15T10:30:00"));
     }
 
     @Test

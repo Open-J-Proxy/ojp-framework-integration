@@ -2,6 +2,7 @@ package com.example.atomikos.entity.postgres;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "accounts")
@@ -13,6 +14,8 @@ public class Account {
     private String accountNumber;
     private String accountHolder;
     private BigDecimal balance;
+    // TODO: Add createdAt field with LocalDateTime type and update tests when Atomikos tests are re-enabled
+    // private LocalDateTime createdAt;
 
     public Account() {
     }

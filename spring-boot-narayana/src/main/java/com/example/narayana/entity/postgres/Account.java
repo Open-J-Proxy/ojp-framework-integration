@@ -2,6 +2,7 @@ package com.example.narayana.entity.postgres;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "accounts")
@@ -13,6 +14,7 @@ public class Account {
     private String accountNumber;
     private String accountHolder;
     private BigDecimal balance;
+    private LocalDateTime createdAt;
 
     public Account() {
     }
@@ -53,5 +55,13 @@ public class Account {
 
     public void setBalance(BigDecimal balance) {
         this.balance = balance;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }
