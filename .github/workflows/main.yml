@@ -44,9 +44,11 @@ jobs:
           echo "=== Docker Compose Version ==="
           docker-compose --version || echo "Docker Compose not found"
 
-      # Clean Maven repository to avoid stale ojp-jdbc-driver artifacts
-      - name: Clean ojp-jdbc-driver from local Maven repository
-        run: rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
+      # Clean Maven repository to avoid stale ojp artifacts
+      - name: Clean ojp artifacts from local Maven repository
+        run: |
+          rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
+          rm -rf ~/.m2/repository/org/openjproxy/spring-boot-starter-ojp
 
       # Build and install ojp-jdbc-driver with integration test SNAPSHOT version
       # This version will be used by all frameworks (Spring Boot, Quarkus, Micronaut)
@@ -57,6 +59,27 @@ jobs:
 
       - name: Build and install ojp-jdbc-driver with SNAPSHOT version
         run: mvn clean install -U -pl ojp-jdbc-driver -am -DskipTests
+        working-directory: ojp
+
+      # Build and install spring-boot-starter-ojp with integration test SNAPSHOT version
+      - name: Set spring-boot-starter-ojp version to SNAPSHOT
+        run: |
+          mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl spring-boot-starter-ojp -DgenerateBackupPoms=false
+          python3 -c "
+          import re, sys
+          f = 'spring-boot-starter-ojp/pom.xml'
+          c = open(f).read()
+          updated = re.sub(r'(<artifactId>ojp-jdbc-driver<\/artifactId>\s*<version>)[^<]*(<\/version>)', r'\g<1>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION\2', c)
+          if updated == c:
+              print('ERROR: ojp-jdbc-driver version not updated in spring-boot-starter-ojp/pom.xml', file=sys.stderr)
+              sys.exit(1)
+          open(f, 'w').write(updated)
+          print('Successfully updated ojp-jdbc-driver dependency version in spring-boot-starter-ojp/pom.xml')
+          "
+        working-directory: ojp
+
+      - name: Build and install spring-boot-starter-ojp with SNAPSHOT version
+        run: mvn clean install -U -pl spring-boot-starter-ojp -am -DskipTests
         working-directory: ojp
 
       # Install remaining ojp modules

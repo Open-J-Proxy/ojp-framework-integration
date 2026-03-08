@@ -34,12 +34,7 @@ public class CheckoutJpaConfig {
 
     @Bean(name = "checkoutDataSource") @Primary
     public DataSource checkoutDataSource(@Qualifier("checkoutProps") DataSourceProperties p) {
-        var ds = new org.springframework.jdbc.datasource.DriverManagerDataSource();
-        ds.setDriverClassName(p.getDriverClassName()); // org.openjproxy.jdbc.Driver
-        ds.setUrl(p.getUrl());                         // jdbc:ojp[...]
-        ds.setUsername(p.getUsername());
-        ds.setPassword(p.getPassword());
-        return ds;
+        return p.initializeDataSourceBuilder().build();
     }
 
     @Bean(name = "checkoutVendorProps")

@@ -33,12 +33,7 @@ public class CatalogJpaConfig {
 
     @Bean(name = "catalogDataSource")
     public DataSource catalogDataSource(@Qualifier("catalogProps") DataSourceProperties p) {
-        var ds = new org.springframework.jdbc.datasource.DriverManagerDataSource();
-        ds.setDriverClassName(p.getDriverClassName()); // org.openjproxy.jdbc.Driver
-        ds.setUrl(p.getUrl());                         // jdbc:ojp[...]
-        ds.setUsername(p.getUsername());
-        ds.setPassword(p.getPassword());
-        return ds;
+        return p.initializeDataSourceBuilder().build();
     }
 
     @Bean(name = "catalogVendorProps")

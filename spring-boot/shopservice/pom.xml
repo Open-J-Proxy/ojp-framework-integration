@@ -28,15 +28,10 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-jdbc</artifactId>
-            <exclusions>
-                <!--When using OJP proxied connection pool the local pool needs to be removed -->
-                <exclusion>
-                    <groupId>com.zaxxer</groupId>
-                    <artifactId>HikariCP</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.openjproxy</groupId>
+            <artifactId>spring-boot-starter-ojp</artifactId>
+            <!-- Don't change this version, it is the standard build done by .github/workflows/main.yml for integration tests -->
+            <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -53,18 +48,6 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.openjproxy</groupId>
-            <artifactId>ojp-jdbc-driver</artifactId>
-            <!-- Don't change this version, it is the standard build done by .github/workflows/main.yml for integration tests -->
-            <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
-        </dependency>
-        <!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
-        <!--<dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <version>42.7.5</version>
-        </dependency>-->
     </dependencies>
     <build>
         <plugins>
