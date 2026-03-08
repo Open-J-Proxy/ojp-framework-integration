@@ -76,6 +76,42 @@ jobs:
           open(f, 'w').write(updated)
           print('Successfully updated ojp-jdbc-driver dependency version in spring-boot-starter-ojp/pom.xml')
           "
+          # Downgrade spring-boot.version from 4.x to 3.2.6 to match the integration-test apps,
+          # and remove spring-boot-jdbc (a Spring Boot 4.x-only artifact) so the starter
+          # can be compiled and loaded without ClassNotFoundException at runtime.
+          python3 -c "
+          import re, sys
+          f = 'spring-boot-starter-ojp/pom.xml'
+          c = open(f).read()
+          # Change spring-boot.version to 3.2.6
+          updated = re.sub(r'<spring-boot\.version>[^<]+</spring-boot\.version>', '<spring-boot.version>3.2.6</spring-boot.version>', c)
+          if updated == c:
+              print('ERROR: spring-boot.version not found in spring-boot-starter-ojp/pom.xml', file=sys.stderr)
+              sys.exit(1)
+          # Remove the spring-boot-jdbc dependency block (does not exist in Spring Boot 3.x)
+          updated = re.sub(r'\s*<dependency>\s*<groupId>org\.springframework\.boot</groupId>\s*<artifactId>spring-boot-jdbc</artifactId>\s*<version>[^<]*</version>\s*<scope>provided</scope>\s*</dependency>', '', updated, flags=re.DOTALL)
+          open(f, 'w').write(updated)
+          print('Successfully downgraded spring-boot.version to 3.2.6 and removed spring-boot-jdbc dependency')
+          "
+          # Patch OjpEnvironmentPostProcessor to use the Spring Boot 3.x EnvironmentPostProcessor
+          # location (org.springframework.boot.env) instead of the 4.x location
+          # (org.springframework.boot). The compiled class must implement the interface that
+          # Spring Boot 3.x can resolve; otherwise a NoClassDefFoundError occurs at startup.
+          python3 -c "
+          import re, sys
+          f = 'spring-boot-starter-ojp/src/main/java/org/openjproxy/autoconfigure/OjpEnvironmentPostProcessor.java'
+          c = open(f).read()
+          updated = re.sub(
+              r'import\s+org\.springframework\.boot\.EnvironmentPostProcessor\s*;',
+              'import org.springframework.boot.env.EnvironmentPostProcessor;',
+              c
+          )
+          if updated == c:
+              print('ERROR: EnvironmentPostProcessor import not updated in OjpEnvironmentPostProcessor.java', file=sys.stderr)
+              sys.exit(1)
+          open(f, 'w').write(updated)
+          print('Successfully updated OjpEnvironmentPostProcessor import for Spring Boot 3.x compatibility')
+          "
         working-directory: ojp
 
       - name: Build and install spring-boot-starter-ojp with SNAPSHOT version
