@@ -56,10 +56,11 @@
             <version>3.2.0</version>
         </dependency>
 
-        <!-- OJP JDBC Driver -->
+        <!-- OJP Spring Boot Starter -->
         <dependency>
             <groupId>org.openjproxy</groupId>
-            <artifactId>ojp-jdbc-driver</artifactId>
+            <artifactId>spring-boot-starter-ojp</artifactId>
+            <!-- Don't change this version, it is the standard build done by .github/workflows/main.yml for integration tests -->
             <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
         </dependency>
 
