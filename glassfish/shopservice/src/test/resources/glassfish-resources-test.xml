@@ -9,6 +9,13 @@
     delegating to H2. Both the OJP driver jar and the H2 jar must be on the
     classpath (configured as test-scoped Maven dependencies).
 
+    res-type="javax.sql.DataSource" is required for GlassFish JTA: the deployment
+    validator looks up jdbc/shopservice as javax.sql.DataSource and fails if the
+    resource is registered under java.sql.Driver type.  OjpDriverDataSource is a
+    minimal DataSource adapter that delegates getConnection() to DriverManager so
+    that the underlying OJP java.sql.Driver is used while satisfying GlassFish's
+    DataSource requirement.
+
     Client-side connection pooling is disabled (steady-pool-size="0",
     max-connection-usage-count="1") because OJP handles all pooling on the proxy
     side. See WEB-INF/glassfish-resources.xml for full explanation.
@@ -17,8 +24,8 @@
 
     <jdbc-connection-pool
         name="ShopServicePool"
-        res-type="java.sql.Driver"
-        driver-classname="org.openjproxy.jdbc.Driver"
+        res-type="javax.sql.DataSource"
+        datasource-classname="com.example.shopservice.OjpDriverDataSource"
         steady-pool-size="0"
         idle-timeout-in-seconds="0"
         max-connection-usage-count="1">

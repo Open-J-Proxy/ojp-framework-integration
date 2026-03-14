@@ -14,6 +14,13 @@
     For embedded GlassFish testing the driver is automatically available via the JVM
     system classpath (see pom.xml test-scope dependencies).
 
+    res-type="javax.sql.DataSource" is required for GlassFish JTA: the deployment
+    validator looks up jdbc/shopservice as javax.sql.DataSource and fails if the
+    resource is registered under java.sql.Driver type.  OjpDriverDataSource is a
+    minimal DataSource adapter that delegates getConnection() to DriverManager so
+    that the underlying OJP java.sql.Driver is used while satisfying GlassFish's
+    DataSource requirement.
+
     IMPORTANT: Client-side connection pooling is disabled (steady-pool-size="0",
     max-connection-usage-count="1"). OJP handles all connection pooling on the
     server (proxy) side. Having an active client-side pool would interfere with
@@ -25,12 +32,11 @@
 
     <jdbc-connection-pool
         name="ShopServicePool"
-        res-type="java.sql.Driver"
-        driver-classname="org.openjproxy.jdbc.Driver"
+        res-type="javax.sql.DataSource"
+        datasource-classname="com.example.shopservice.OjpDriverDataSource"
         steady-pool-size="0"
         idle-timeout-in-seconds="0"
-        max-connection-usage-count="1"
-        ping="true">
+        max-connection-usage-count="1">
         <!--
             OJP JDBC URL format: jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>
             In the URL below:

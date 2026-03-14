@@ -38,6 +38,8 @@ public final class DeploymentFactory {
         return ShrinkWrap.create(WebArchive.class, "shopservice.war")
                 // Application entry point
                 .addClass(ShopServiceApplication.class)
+                // DataSource adapter for OJP driver (required by GlassFish JDBC pool)
+                .addClass(OjpDriverDataSource.class)
                 // Entities
                 .addClass(User.class)
                 .addClass(Product.class)
