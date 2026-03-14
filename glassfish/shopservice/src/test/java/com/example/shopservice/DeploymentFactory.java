@@ -16,7 +16,7 @@ import com.example.shopservice.resource.ProductResource;
 import com.example.shopservice.resource.ReviewResource;
 import com.example.shopservice.resource.UserResource;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.asset.EmptyAsset;
+import org.jboss.shrinkwrap.api.asset.StringAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 
 /**
@@ -62,7 +62,20 @@ public final class DeploymentFactory {
                 .addClass(ReviewResource.class)
                 // Use test persistence.xml (H2, drop-and-create schema)
                 .addAsResource("META-INF/persistence-test.xml", "META-INF/persistence.xml")
-                // Explicit CDI activation - ensures bean discovery works in the ShrinkWrap archive
-                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+                // Explicit CDI activation with annotated discovery mode.
+                // EmptyAsset.INSTANCE (0-byte beans.xml) would trigger bean-discovery-mode="all",
+                // which causes Weld to proxy server-side built-in beans (jakarta.transaction.UserTransaction)
+                // that are invisible from the WAR classloader in GlassFish Embedded — WELD-001524.
+                // "annotated" mode discovers only beans carrying CDI annotations, avoiding that issue.
+                .addAsWebInfResource(
+                        new StringAsset("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                                + "<beans xmlns=\"https://jakarta.ee/xml/ns/jakartaee\"\n"
+                                + "       xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n"
+                                + "       xsi:schemaLocation=\"https://jakarta.ee/xml/ns/jakartaee"
+                                + " https://jakarta.ee/xml/ns/jakartaee/beans_4_0.xsd\"\n"
+                                + "       version=\"4.0\"\n"
+                                + "       bean-discovery-mode=\"annotated\">\n"
+                                + "</beans>"),
+                        "beans.xml");
     }
 }
