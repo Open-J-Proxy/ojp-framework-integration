@@ -27,9 +27,8 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
  *   <li>All application classes (entities, repositories, JAX-RS resources, application class).</li>
  *   <li>{@link TestDataSourceProducer} — registers the JDBC datasource via
  *       {@code @DataSourceDefinition(name="java:app/jdbc/shopservice")} so it is visible
- *       to GlassFish's JNDI validator before deployment validation runs.</li>
- *   <li>{@link OjpDriverDataSource} — the minimal {@code DataSource} adapter referenced by
- *       the {@code @DataSourceDefinition} (OJP ships a Driver, not a DataSource).</li>
+ *       to GlassFish's JNDI validator before deployment validation runs. The datasource
+ *       connects directly to H2 in-memory (no OJP proxy) for the test phase.</li>
  *   <li>A test-specific {@code persistence.xml} configured for H2 with drop-and-create.</li>
  * </ul>
  */
@@ -41,10 +40,8 @@ public final class DeploymentFactory {
         return ShrinkWrap.create(WebArchive.class, "shopservice.war")
                 // Application entry point
                 .addClass(ShopServiceApplication.class)
-                // Test datasource registration via @DataSourceDefinition
+                // Test datasource registration via @DataSourceDefinition (direct H2, no OJP)
                 .addClass(TestDataSourceProducer.class)
-                // DataSource adapter for the OJP JDBC Driver (Driver-only, no DataSource class)
-                .addClass(OjpDriverDataSource.class)
                 // Entities
                 .addClass(User.class)
                 .addClass(Product.class)
