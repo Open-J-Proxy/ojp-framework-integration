@@ -28,7 +28,6 @@
         res-type="java.sql.Driver"
         driver-classname="org.openjproxy.jdbc.Driver"
         steady-pool-size="0"
-        max-pool-size="1"
         idle-timeout-in-seconds="0"
         max-connection-usage-count="1"
         ping="true">
