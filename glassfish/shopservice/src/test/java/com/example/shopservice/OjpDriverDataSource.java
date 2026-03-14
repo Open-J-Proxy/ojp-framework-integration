@@ -9,19 +9,15 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.logging.Logger;
 
 /**
- * Minimal {@link DataSource} adapter for the OJP JDBC Driver.
+ * Minimal {@link DataSource} adapter for the OJP JDBC Driver, used in tests only.
  *
- * <p>GlassFish requires {@code res-type="javax.sql.DataSource"} for JTA data sources,
- * but OJP only ships a {@link java.sql.Driver} implementation.  This adapter delegates
- * every {@link #getConnection()} call to {@link DriverManager}, which loads the OJP
- * driver automatically via the standard JDBC SPI mechanism.
- *
- * <p>No connections are cached here; caching is suppressed at the GlassFish pool level
- * via {@code steady-pool-size="0"} and {@code max-connection-usage-count="1"}.  All
- * real connection pooling is performed inside the OJP proxy server.
+ * <p>GlassFish's {@code @DataSourceDefinition} requires a {@link DataSource} implementation
+ * class name, but OJP only ships a {@link java.sql.Driver}.  This adapter delegates every
+ * {@link #getConnection()} call to {@link DriverManager}, which loads the OJP driver
+ * automatically via the standard JDBC SPI mechanism.
  *
  * <p>GlassFish populates {@code url}, {@code user} and {@code password} via JavaBean
- * setters from the {@code <property>} elements in {@code glassfish-resources.xml}.
+ * setters from the {@code @DataSourceDefinition} properties.
  */
 public class OjpDriverDataSource implements DataSource {
 

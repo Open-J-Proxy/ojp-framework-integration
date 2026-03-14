@@ -10,7 +10,13 @@
         'drop-and-create' ensures a clean schema before each test deployment.
     -->
     <persistence-unit name="shopservice" transaction-type="JTA">
-        <jta-data-source>jdbc/shopservice</jta-data-source>
+        <!--
+            Use the java:app/ prefix to match the @DataSourceDefinition registered by
+            TestDataSourceProducer.  Plain "jdbc/shopservice" cannot be used in embedded
+            GlassFish tests because the glassfish-resources.xml jdbc-resource is not bound
+            in JNDI before ResourceValidator.validateJNDIRefs runs.
+        -->
+        <jta-data-source>java:app/jdbc/shopservice</jta-data-source>
 
         <class>com.example.shopservice.entity.User</class>
         <class>com.example.shopservice.entity.Product</class>

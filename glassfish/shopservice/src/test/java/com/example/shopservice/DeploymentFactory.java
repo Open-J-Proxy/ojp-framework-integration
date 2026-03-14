@@ -25,9 +25,12 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
  * <p>The archive contains:
  * <ul>
  *   <li>All application classes (entities, repositories, JAX-RS resources, application class).</li>
+ *   <li>{@link TestDataSourceProducer} — registers the JDBC datasource via
+ *       {@code @DataSourceDefinition(name="java:app/jdbc/shopservice")} so it is visible
+ *       to GlassFish's JNDI validator before deployment validation runs.</li>
+ *   <li>{@link OjpDriverDataSource} — the minimal {@code DataSource} adapter referenced by
+ *       the {@code @DataSourceDefinition} (OJP ships a Driver, not a DataSource).</li>
  *   <li>A test-specific {@code persistence.xml} configured for H2 with drop-and-create.</li>
- *   <li>A test-specific {@code glassfish-resources.xml} that defines a JDBC connection pool
- *       pointing to an H2 in-memory database via the OJP proxy driver.</li>
  * </ul>
  */
 public final class DeploymentFactory {
@@ -38,7 +41,9 @@ public final class DeploymentFactory {
         return ShrinkWrap.create(WebArchive.class, "shopservice.war")
                 // Application entry point
                 .addClass(ShopServiceApplication.class)
-                // DataSource adapter for OJP driver (required by GlassFish JDBC pool)
+                // Test datasource registration via @DataSourceDefinition
+                .addClass(TestDataSourceProducer.class)
+                // DataSource adapter for the OJP JDBC Driver (Driver-only, no DataSource class)
                 .addClass(OjpDriverDataSource.class)
                 // Entities
                 .addClass(User.class)
@@ -60,8 +65,6 @@ public final class DeploymentFactory {
                 .addClass(ReviewResource.class)
                 // Use test persistence.xml (H2, drop-and-create schema)
                 .addAsResource("META-INF/persistence-test.xml", "META-INF/persistence.xml")
-                // Use test glassfish-resources.xml (H2 datasource via OJP)
-                .addAsWebInfResource("glassfish-resources-test.xml", "glassfish-resources.xml")
                 // Explicit CDI activation - ensures bean discovery works in the ShrinkWrap archive
                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
     }
