@@ -123,6 +123,10 @@ jobs:
         run: mvn clean verify
         working-directory: spring-boot-narayana
 
+      - name: Run OJP GlassFish Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: glassfish/shopservice
+
       - name: Show ojp-server.log
         if: always()  # ensures it runs even if previous steps fail
         run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
