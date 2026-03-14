@@ -13,6 +13,13 @@
 
     For embedded GlassFish testing the driver is automatically available via the JVM
     system classpath (see pom.xml test-scope dependencies).
+
+    IMPORTANT: Client-side connection pooling is disabled (steady-pool-size="0",
+    max-connection-usage-count="1"). OJP handles all connection pooling on the
+    server (proxy) side. Having an active client-side pool would interfere with
+    OJP's connection management. This matches the approach used in the other
+    framework implementations in this repository (Spring Boot: SimpleDriverDataSource,
+    Micronaut: bare DriverManager, Quarkus: unpooled=true).
 -->
 <resources>
 
@@ -20,6 +27,10 @@
         name="ShopServicePool"
         res-type="java.sql.Driver"
         driver-classname="org.openjproxy.jdbc.Driver"
+        steady-pool-size="0"
+        max-pool-size="1"
+        idle-timeout-in-seconds="0"
+        max-connection-usage-count="1"
         ping="true">
         <!--
             OJP JDBC URL format: jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>

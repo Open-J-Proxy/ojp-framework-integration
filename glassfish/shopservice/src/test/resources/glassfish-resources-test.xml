@@ -8,13 +8,21 @@
     The OJP URL format routes through a local OJP server (localhost:1059) before
     delegating to H2. Both the OJP driver jar and the H2 jar must be on the
     classpath (configured as test-scoped Maven dependencies).
+
+    Client-side connection pooling is disabled (steady-pool-size="0",
+    max-connection-usage-count="1") because OJP handles all pooling on the proxy
+    side. See WEB-INF/glassfish-resources.xml for full explanation.
 -->
 <resources>
 
     <jdbc-connection-pool
         name="ShopServicePool"
         res-type="java.sql.Driver"
-        driver-classname="org.openjproxy.jdbc.Driver">
+        driver-classname="org.openjproxy.jdbc.Driver"
+        steady-pool-size="0"
+        max-pool-size="1"
+        idle-timeout-in-seconds="0"
+        max-connection-usage-count="1">
         <!--
             Port 1059 is the conventional OJP test server port used across all framework
             integrations in this repository (Spring Boot, Micronaut, Quarkus, and GlassFish).

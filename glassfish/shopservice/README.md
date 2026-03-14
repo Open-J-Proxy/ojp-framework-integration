@@ -202,4 +202,6 @@ http://localhost:8080/shopservice/users
 
 5. **EclipseLink as JPA provider**: GlassFish bundles EclipseLink (the Jakarta EE Reference Implementation for JPA), not Hibernate. Hibernate-specific features (e.g., `@Formula`, Panache) are not available; standard JPA APIs are used throughout.
 
-6. **JSON-B for serialization**: GlassFish uses JSON-B (via EclipseLink MOXy) as the default JSON provider in JAX-RS. The `@JsonbTransient` annotation (from `jakarta.json.bind.annotation`) is used to break the circular reference between `Order` and `OrderItem`.
+6. **Client-side connection pooling disabled**: The GlassFish JDBC pool is configured with `max-connection-usage-count="1"` and `steady-pool-size="0"` so that each request gets a fresh connection that is immediately discarded after use — exactly equivalent to `SimpleDriverDataSource` (Spring Boot), the bare `DriverManager` wrapper (Micronaut), and `unpooled=true` (Quarkus). OJP manages all connection pooling at the proxy (server) level; an active client-side pool would interfere with OJP's connection management.
+
+7. **JSON-B for serialization**: GlassFish uses JSON-B (via EclipseLink MOXy) as the default JSON provider in JAX-RS. The `@JsonbTransient` annotation (from `jakarta.json.bind.annotation`) is used to break the circular reference between `Order` and `OrderItem`.
