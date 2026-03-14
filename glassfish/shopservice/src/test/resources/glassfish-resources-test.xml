@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources PUBLIC
+    "-//GlassFish.org//DTD GlassFish Application Server 3.1 Resource Definitions//EN"
+    "http://glassfish.org/dtds/glassfish-resources_1_5.dtd">
+
+<!--
+    Test datasource using H2 in-memory database via the OJP proxy driver.
+    The OJP URL format routes through a local OJP server (localhost:1059) before
+    delegating to H2. Both the OJP driver jar and the H2 jar must be on the
+    classpath (configured as test-scoped Maven dependencies).
+-->
+<resources>
+
+    <jdbc-connection-pool
+        name="ShopServicePool"
+        res-type="java.sql.Driver"
+        driver-classname="org.openjproxy.jdbc.Driver">
+        <property name="url"
+                  value="jdbc:ojp[localhost:1059]_h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"/>
+        <property name="user" value="sa"/>
+        <property name="password" value=""/>
+    </jdbc-connection-pool>
+
+    <jdbc-resource
+        jndi-name="jdbc/shopservice"
+        pool-name="ShopServicePool"/>
+
+</resources>

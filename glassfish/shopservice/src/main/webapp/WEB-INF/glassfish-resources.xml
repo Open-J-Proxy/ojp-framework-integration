@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources PUBLIC
+    "-//GlassFish.org//DTD GlassFish Application Server 3.1 Resource Definitions//EN"
+    "http://glassfish.org/dtds/glassfish-resources_1_5.dtd">
+
+<!--
+    GlassFish JDBC resources for the shopservice application.
+    GlassFish processes this file on deployment and creates the JDBC pool and resource.
+
+    The OJP JDBC driver jar must be placed in the GlassFish domain's lib/ directory
+    (e.g. glassfish/domains/domain1/lib/) before starting the server so that GlassFish's
+    connection pool manager can load the driver class.
+
+    For embedded GlassFish testing the driver is automatically available via the JVM
+    system classpath (see pom.xml test-scope dependencies).
+-->
+<resources>
+
+    <jdbc-connection-pool
+        name="ShopServicePool"
+        res-type="java.sql.Driver"
+        driver-classname="org.openjproxy.jdbc.Driver"
+        ping="true">
+        <!-- OJP proxy URL pointing to a local PostgreSQL instance -->
+        <property name="url"
+                  value="jdbc:ojp[localhost:5432]_postgresql://localhost/shopservice_db"/>
+        <property name="user" value="shopuser"/>
+        <property name="password" value="shoppass"/>
+    </jdbc-connection-pool>
+
+    <jdbc-resource
+        jndi-name="jdbc/shopservice"
+        pool-name="ShopServicePool"/>
+
+</resources>
