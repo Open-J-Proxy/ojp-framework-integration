@@ -16,6 +16,7 @@ import com.example.shopservice.resource.ProductResource;
 import com.example.shopservice.resource.ReviewResource;
 import com.example.shopservice.resource.UserResource;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
+import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 
 /**
@@ -58,6 +59,8 @@ public final class DeploymentFactory {
                 // Use test persistence.xml (H2, drop-and-create schema)
                 .addAsResource("META-INF/persistence-test.xml", "META-INF/persistence.xml")
                 // Use test glassfish-resources.xml (H2 datasource via OJP)
-                .addAsWebInfResource("glassfish-resources-test.xml", "glassfish-resources.xml");
+                .addAsWebInfResource("glassfish-resources-test.xml", "glassfish-resources.xml")
+                // Explicit CDI activation - ensures bean discovery works in the ShrinkWrap archive
+                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
     }
 }
