@@ -52,6 +52,17 @@
                 the short alias "H2" and throws ClassNotFoundException otherwise.
             -->
             <property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.H2Platform"/>
+            <!--
+                Disable EclipseLink's proprietary DDL generation. Without this, EclipseLink
+                runs BOTH its metadata-based DDL (which creates tables with "BIGINT IDENTITY"
+                that loses auto-increment semantics through the OJP gRPC proxy) AND the JPA
+                standard script-based generation. The concurrent auto-DDL creates FK constraints
+                with hash names (e.g. FKC2TMOCF2397U5BYW57CYSBP22) that prevent our drop.sql
+                from running clean DROP TABLE IF EXISTS statements, causing the subsequent
+                create.sql to fail with "table already exists", leaving tables without
+                auto-increment and triggering "NULL not allowed for column ID" on INSERT.
+            -->
+            <property name="eclipselink.ddl-generation" value="none"/>
             <property name="eclipselink.logging.level.sql" value="FINE"/>
             <property name="eclipselink.logging.parameters" value="true"/>
         </properties>
