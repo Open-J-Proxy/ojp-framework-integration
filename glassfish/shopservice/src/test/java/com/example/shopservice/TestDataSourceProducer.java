@@ -19,9 +19,6 @@ import jakarta.enterprise.context.ApplicationScoped;
  * {@code jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>}.  This matches the approach
  * used in the Quarkus and Spring Boot test configurations in this repository.
  *
- * <p>{@code MODE=LEGACY} is appended to the H2 URL because EclipseLink 4.x {@code H2Platform}
- * generates {@code BIGINT IDENTITY} DDL syntax which H2 2.x dropped; LEGACY mode re-enables it.
- *
  * <p>The datasource is registered in the {@code java:app/} namespace so that
  * {@code persistence-test.xml} can reference it as {@code java:app/jdbc/shopservice}.
  *
@@ -31,7 +28,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 @DataSourceDefinition(
         name      = "java:app/jdbc/shopservice",
         className = "org.openjproxy.jdbc.OjpDataSource",
-        url       = "jdbc:ojp[localhost:1059]_h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=LEGACY",
+        url       = "jdbc:ojp[localhost:1059]_h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
         user      = "sa",
         password  = "")
 @ApplicationScoped

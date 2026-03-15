@@ -1,9 +1,12 @@
--- Drop all tables, using CASCADE to remove any FK constraints that reference them.
--- CASCADE ensures the drop succeeds even if a constraint in another table still
--- references this one (e.g. if a previous schema generation left partial state).
+-- Drop all tables (CASCADE removes any FK constraints) then sequences.
 -- IF EXISTS keeps the script idempotent on a fresh database.
 DROP TABLE IF EXISTS ORDER_ITEMS CASCADE;
 DROP TABLE IF EXISTS REVIEWS CASCADE;
 DROP TABLE IF EXISTS ORDERS CASCADE;
 DROP TABLE IF EXISTS PRODUCTS CASCADE;
 DROP TABLE IF EXISTS USERS CASCADE;
+DROP SEQUENCE IF EXISTS users_id_seq;
+DROP SEQUENCE IF EXISTS products_id_seq;
+DROP SEQUENCE IF EXISTS orders_id_seq;
+DROP SEQUENCE IF EXISTS order_items_id_seq;
+DROP SEQUENCE IF EXISTS reviews_id_seq;

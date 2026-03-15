@@ -7,7 +7,8 @@ import jakarta.persistence.*;
 public class Review {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "review_seq")
+    @SequenceGenerator(name = "review_seq", sequenceName = "reviews_id_seq", allocationSize = 1)
     private Long id;
 
     @ManyToOne(optional = false)
