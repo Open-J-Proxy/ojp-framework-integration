@@ -53,16 +53,23 @@
             -->
             <property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.H2Platform"/>
             <!--
-                Disable EclipseLink's proprietary DDL generation. Without this, EclipseLink
-                runs BOTH its metadata-based DDL (which creates tables with "BIGINT IDENTITY"
-                that loses auto-increment semantics through the OJP gRPC proxy) AND the JPA
-                standard script-based generation. The concurrent auto-DDL creates FK constraints
-                with hash names (e.g. FKC2TMOCF2397U5BYW57CYSBP22) that prevent our drop.sql
-                from running clean DROP TABLE IF EXISTS statements, causing the subsequent
-                create.sql to fail with "table already exists", leaving tables without
-                auto-increment and triggering "NULL not allowed for column ID" on INSERT.
+                Redirect EclipseLink's proprietary DDL to a file instead of executing it
+                against the database. Without this, EclipseLink's metadata-based DDL races
+                with the JPA standard script execution: it creates parent tables (users,
+                products, orders) with "BIGINT IDENTITY" BEFORE the JPA drop script cleans
+                them, causing the JPA create script to fail silently with "table already
+                exists" for those tables — leaving them with broken schemas that lose
+                auto-increment semantics through the OJP gRPC proxy.
+
+                Setting output-mode=sql-script redirects the proprietary DDL to disk so it
+                never touches the database. The JPA standard drop-source=script and
+                create-source=script paths are independent of this property and still
+                execute drop.sql and create.sql against the datasource.
             -->
-            <property name="eclipselink.ddl-generation" value="none"/>
+            <property name="eclipselink.ddl-generation" value="create-or-extend-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="sql-script"/>
+            <property name="eclipselink.create-ddl-jdbc-file-name" value="target/eclipselink-create.sql"/>
+            <property name="eclipselink.drop-ddl-jdbc-file-name" value="target/eclipselink-drop.sql"/>
             <property name="eclipselink.logging.level.sql" value="FINE"/>
             <property name="eclipselink.logging.parameters" value="true"/>
         </properties>
