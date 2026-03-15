@@ -39,9 +39,10 @@
             <!--
                 Use explicit SQL scripts for schema creation.  The entities use
                 GenerationType.SEQUENCE so EclipseLink calls NEXTVAL before each INSERT
-                and includes the ID in the statement.  This avoids the OJP proxy limitation
-                where IDENTITY/auto-increment semantics are stripped from DDL statements,
-                which caused "NULL not allowed for column ID" errors with IDENTITY columns.
+                and includes the ID in the statement.  This avoids a limitation with
+                GenerationType.IDENTITY through OJP: the OJP JDBC driver does not return
+                generated keys via getGeneratedKeys(), so EclipseLink ends up with a null
+                ID after INSERT, causing "NULL not allowed for column ID" on the next run.
             -->
             <property name="jakarta.persistence.schema-generation.create-source" value="script"/>
             <property name="jakarta.persistence.schema-generation.create-script-source" value="META-INF/create.sql"/>
@@ -52,14 +53,17 @@
             -->
             <property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.H2Platform"/>
             <!--
-                Disable EclipseLink's proprietary DDL generation entirely.
-                The JPA standard drop-source=script and create-source=script below
-                are independent of this setting and still execute drop.sql/create.sql.
-                Without this, EclipseLink's metadata-based DDL races with the JPA
-                standard scripts and creates tables with "BIGINT IDENTITY" (which the
-                OJP gRPC proxy strips, leaving plain NOT NULL columns with no default).
+                Redirect EclipseLink's proprietary DDL to a file instead of executing it
+                against the database.  Without this, EclipseLink's metadata-based DDL races
+                with the JPA standard drop-source=script / create-source=script and creates
+                tables before drop.sql can clean them up.
+
+                IMPORTANT: eclipselink.ddl-generation=none also disables the JPA standard
+                script execution (drop.sql / create.sql), so it cannot be used here.
+                output-mode=sql-script writes EclipseLink's DDL to target/ files only.
             -->
-            <property name="eclipselink.ddl-generation" value="none"/>
+            <property name="eclipselink.ddl-generation" value="create-or-extend-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="sql-script"/>
             <property name="eclipselink.logging.level.sql" value="FINE"/>
             <property name="eclipselink.logging.parameters" value="true"/>
         </properties>

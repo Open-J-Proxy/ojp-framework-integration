@@ -1,9 +1,8 @@
 -- Create sequences first, then tables in FK-safe order (parent tables first).
--- Using sequences instead of IDENTITY columns avoids a known OJP proxy limitation:
--- the gRPC proxy strips IDENTITY/auto-increment semantics from DDL, so IDENTITY columns
--- end up as plain NOT NULL columns with no default.  With SEQUENCE generation EclipseLink
--- calls NEXTVAL explicitly before each INSERT and includes the ID in the statement,
--- which works correctly through the OJP proxy.
+-- Using GenerationType.SEQUENCE instead of IDENTITY avoids a limitation with
+-- OJP's JDBC driver: getGeneratedKeys() is not supported, so EclipseLink ends up with
+-- a null ID after an IDENTITY INSERT.  With SEQUENCE generation EclipseLink calls
+-- NEXTVAL explicitly before each INSERT and includes the ID in the statement.
 -- Each statement is on a single line: EclipseLink's create-source=script reader splits
 -- on newlines, so a multi-line statement would be executed line-by-line.
 CREATE SEQUENCE IF NOT EXISTS users_id_seq START WITH 1;
