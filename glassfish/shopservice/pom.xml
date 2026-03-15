@@ -126,6 +126,22 @@
                         <include>**/*Test.java</include>
                         <include>**/*IT.java</include>
                     </includes>
+                    <!--
+                        GlassFish 7 Embedded running under Java 17+ needs several --add-opens
+                        entries so that Weld can generate proxy classes for built-in CDI beans
+                        (e.g. jakarta.transaction.UserTransaction) without hitting WELD-001524.
+                        These are the same flags that GlassFish's own startup scripts pass to
+                        the JVM when launching a full GlassFish server.
+                    -->
+                    <argLine>
+                        --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                        --add-opens java.base/java.lang.reflect=ALL-UNNAMED
+                        --add-opens java.base/java.net=ALL-UNNAMED
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.naming/javax.naming.spi=ALL-UNNAMED
+                        --add-opens java.rmi/sun.rmi.transport=ALL-UNNAMED
+                    </argLine>
                 </configuration>
             </plugin>
         </plugins>
