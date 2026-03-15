@@ -28,8 +28,7 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
  *   <li>{@link TestDataSourceProducer} — registers the JDBC datasource via
  *       {@code @DataSourceDefinition(name="java:app/jdbc/shopservice")} so it is visible
  *       to GlassFish's JNDI validator before deployment validation runs. The datasource
- *       uses {@code org.openjproxy.jdbc.OjpDataSource} routing through a local OJP proxy to
- *       an H2 in-memory backend.</li>
+ *       connects directly to H2 in-memory (no OJP proxy) for the test phase.</li>
  *   <li>A test-specific {@code persistence.xml} configured for H2 with drop-and-create.</li>
  * </ul>
  */
@@ -41,7 +40,7 @@ public final class DeploymentFactory {
         return ShrinkWrap.create(WebArchive.class, "shopservice.war")
                 // Application entry point
                 .addClass(ShopServiceApplication.class)
-                // Test datasource registration via @DataSourceDefinition (OjpDataSource → H2 via OJP)
+                // Test datasource registration via @DataSourceDefinition (direct H2, no OJP)
                 .addClass(TestDataSourceProducer.class)
                 // Entities
                 .addClass(User.class)
@@ -61,7 +60,7 @@ public final class DeploymentFactory {
                 .addClass(OrderResource.class)
                 .addClass(OrderItemResource.class)
                 .addClass(ReviewResource.class)
-                // Use test persistence.xml (H2 via OJP, drop-and-create schema)
+                // Use test persistence.xml (H2, drop-and-create schema)
                 .addAsResource("META-INF/persistence-test.xml", "META-INF/persistence.xml")
                 // Explicit CDI activation with annotated discovery mode.
                 // EmptyAsset.INSTANCE (0-byte beans.xml) would trigger bean-discovery-mode="all",
