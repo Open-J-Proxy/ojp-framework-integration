@@ -127,8 +127,8 @@
                         <include>**/*IT.java</include>
                     </includes>
                     <!--
-                        GlassFish 7 Embedded running under Java 17+ needs several --add-opens
-                        entries so that Weld can generate proxy classes for built-in CDI beans
+                        GlassFish 7 Embedded running under Java 17+ needs JVM add-opens flags
+                        so that Weld can generate proxy classes for built-in CDI beans
                         (e.g. jakarta.transaction.UserTransaction) without hitting WELD-001524.
                         These are the same flags that GlassFish's own startup scripts pass to
                         the JVM when launching a full GlassFish server.
