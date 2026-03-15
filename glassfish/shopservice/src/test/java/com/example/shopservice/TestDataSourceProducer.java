@@ -13,9 +13,10 @@ import jakarta.enterprise.context.ApplicationScoped;
  * {@code NameNotFoundException: shopservice not found}.  Annotation-based registration
  * happens earlier in the deployment pipeline and is visible to the validator.
  *
- * <p>The datasource connects via the OJP JDBC driver (same as all other framework modules),
- * routing through a local OJP proxy server to an H2 in-memory backend.  The OJP URL format
- * is {@code jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>}.  This matches the approach
+ * <p>The datasource uses {@code org.openjproxy.jdbc.OjpDataSource} — the {@link javax.sql.DataSource}
+ * implementation shipped by the OJP JDBC driver — routing through a local OJP proxy server to an
+ * H2 in-memory backend.  The OJP URL format is
+ * {@code jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>}.  This matches the approach
  * used in the Quarkus and Spring Boot test configurations in this repository.
  *
  * <p>{@code MODE=LEGACY} is appended to the H2 URL because EclipseLink 4.x {@code H2Platform}
@@ -29,7 +30,7 @@ import jakarta.enterprise.context.ApplicationScoped;
  */
 @DataSourceDefinition(
         name      = "java:app/jdbc/shopservice",
-        className = "org.openjproxy.jdbc.Driver",
+        className = "org.openjproxy.jdbc.OjpDataSource",
         url       = "jdbc:ojp[localhost:1059]_h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=LEGACY",
         user      = "sa",
         password  = "")

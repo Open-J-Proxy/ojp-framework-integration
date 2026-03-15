@@ -28,7 +28,7 @@ A REST-based shop service implemented with **GlassFish 7** and **Jakarta EE 10**
 - CDI beans (`@ApplicationScoped`) for repositories with container-managed `EntityManager`
 - JAX-RS resources (`@RequestScoped`) with container-managed transactions (`@Transactional`)
 - JNDI-configured JDBC datasource via `WEB-INF/glassfish-resources.xml`
-- OJP driver used as the JDBC driver for both production and test environments
+- `org.openjproxy.jdbc.OjpDataSource` (`javax.sql.DataSource` implementation) used for both production and test datasource configuration
 - Arquillian integration tests that deploy the WAR to an embedded GlassFish 7 instance
 
 ---
@@ -68,6 +68,7 @@ glassfish/shopservice/
     └── test/
         ├── java/com/example/shopservice/
         │   ├── DeploymentFactory.java           # Shared ShrinkWrap archive builder
+        │   ├── TestDataSourceProducer.java      # @DataSourceDefinition (OjpDataSource → H2)
         │   └── resource/
         │       ├── ProductResourceTest.java
         │       ├── UserResourceTest.java
@@ -75,7 +76,6 @@ glassfish/shopservice/
         │       └── ReviewResourceTest.java
         └── resources/
             ├── arquillian.xml                   # Embedded GlassFish port config
-            ├── glassfish-resources-test.xml     # Test datasource (H2 via OJP)
             └── META-INF/
                 └── persistence-test.xml         # Test persistence unit (drop-and-create)
 ```
@@ -198,7 +198,7 @@ http://localhost:8080/shopservice/users
 
 3. **JNDI datasource**: Datasource configuration is done at the server level via `glassfish-resources.xml` (or the GlassFish admin console / `asadmin` CLI), not in an `application.properties` file. The persistence unit references the datasource by JNDI name (`jdbc/shopservice`).
 
-4. **OJP driver placement**: For production use, the OJP driver JAR must be placed in GlassFish's `domain/lib/` directory so it can be loaded by the server-level JDBC pool manager. For embedded testing, the driver is available on the JVM system classpath via Maven test-scope dependencies.
+4. **OJP `OjpDataSource`**: The datasource is configured using `org.openjproxy.jdbc.OjpDataSource`, the `javax.sql.DataSource` implementation shipped with the OJP JDBC driver. `glassfish-resources.xml` uses `res-type="javax.sql.DataSource"` with `datasource-classname="org.openjproxy.jdbc.OjpDataSource"`. For tests, `TestDataSourceProducer` registers the same datasource class via `@DataSourceDefinition(className="org.openjproxy.jdbc.OjpDataSource")`. Using a proper `DataSource` class (rather than `java.sql.Driver` with `driver-classname`) ensures GlassFish can register and look up the JNDI resource correctly at deployment time. For production deployment the OJP driver JAR must be placed in GlassFish's `domain/lib/` directory so it can be loaded by the server-level JDBC pool manager. For embedded testing it is available on the JVM system classpath via Maven test-scope dependencies.
 
 5. **EclipseLink as JPA provider**: GlassFish bundles EclipseLink (the Jakarta EE Reference Implementation for JPA), not Hibernate. Hibernate-specific features (e.g., `@Formula`, Panache) are not available; standard JPA APIs are used throughout.
 

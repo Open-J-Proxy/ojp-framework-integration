@@ -28,7 +28,8 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
  *   <li>{@link TestDataSourceProducer} — registers the JDBC datasource via
  *       {@code @DataSourceDefinition(name="java:app/jdbc/shopservice")} so it is visible
  *       to GlassFish's JNDI validator before deployment validation runs. The datasource
- *       connects directly to H2 in-memory (no OJP proxy) for the test phase.</li>
+ *       uses {@code org.openjproxy.jdbc.OjpDataSource} routing through a local OJP proxy to
+ *       an H2 in-memory backend.</li>
  *   <li>A test-specific {@code persistence.xml} configured for H2 with drop-and-create.</li>
  * </ul>
  */
@@ -40,7 +41,7 @@ public final class DeploymentFactory {
         return ShrinkWrap.create(WebArchive.class, "shopservice.war")
                 // Application entry point
                 .addClass(ShopServiceApplication.class)
-                // Test datasource registration via @DataSourceDefinition (direct H2, no OJP)
+                // Test datasource registration via @DataSourceDefinition (OjpDataSource → H2 via OJP)
                 .addClass(TestDataSourceProducer.class)
                 // Entities
                 .addClass(User.class)

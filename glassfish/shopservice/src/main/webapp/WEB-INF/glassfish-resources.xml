@@ -22,8 +22,8 @@
 
     <jdbc-connection-pool
         name="ShopServicePool"
-        res-type="java.sql.Driver"
-        driver-classname="org.openjproxy.jdbc.Driver"
+        res-type="javax.sql.DataSource"
+        datasource-classname="org.openjproxy.jdbc.OjpDataSource"
         steady-pool-size="0"
         idle-timeout-in-seconds="0"
         max-connection-usage-count="1">
