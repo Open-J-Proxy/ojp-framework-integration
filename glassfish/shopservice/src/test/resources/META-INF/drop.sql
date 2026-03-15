@@ -1,12 +1,7 @@
--- Drop all tables (CASCADE removes any FK constraints) then sequences.
+-- Drop all tables (CASCADE removes any FK constraints).
 -- IF EXISTS keeps the script idempotent on a fresh database.
 DROP TABLE IF EXISTS ORDER_ITEMS CASCADE;
 DROP TABLE IF EXISTS REVIEWS CASCADE;
 DROP TABLE IF EXISTS ORDERS CASCADE;
 DROP TABLE IF EXISTS PRODUCTS CASCADE;
 DROP TABLE IF EXISTS USERS CASCADE;
-DROP SEQUENCE IF EXISTS users_id_seq;
-DROP SEQUENCE IF EXISTS products_id_seq;
-DROP SEQUENCE IF EXISTS orders_id_seq;
-DROP SEQUENCE IF EXISTS order_items_id_seq;
-DROP SEQUENCE IF EXISTS reviews_id_seq;
