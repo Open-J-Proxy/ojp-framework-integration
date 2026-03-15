@@ -63,6 +63,8 @@ public final class DeploymentFactory {
                 .addClass(ReviewResource.class)
                 // Use test persistence.xml (H2, drop-and-create schema)
                 .addAsResource("META-INF/persistence-test.xml", "META-INF/persistence.xml")
+                // Drop script used by persistence-test.xml; drops tables in FK-safe order
+                .addAsResource("META-INF/drop.sql", "META-INF/drop.sql")
                 // Explicit CDI activation with annotated discovery mode.
                 // EmptyAsset.INSTANCE (0-byte beans.xml) would trigger bean-discovery-mode="all",
                 // which causes Weld to proxy server-side built-in beans (jakarta.transaction.UserTransaction)
