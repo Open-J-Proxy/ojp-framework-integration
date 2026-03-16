@@ -44,14 +44,27 @@
         <dependency>
             <groupId>org.openjproxy</groupId>
             <artifactId>ojp-jdbc-driver</artifactId>
-            <version>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION</version>
+            <version>0.4.1-SNAPSHOT</version>
         </dependency>
 
-        <!-- H2 in-memory database (for testing) -->
+        <!--
+           SLF4J API and simple binding (test-scoped).
+           OjpDataSource declares slf4j-api as "provided" scope, so the consuming
+           application must supply it.  Without this, OjpDataSource.<init> throws
+           NoClassDefFoundError: org/slf4j/LoggerFactory at deployment time, which
+           cascades into every REST endpoint returning an HTML error page instead of JSON.
+           Version matches what ojp-jdbc-driver uses in its own pom.
+       -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <version>2.2.224</version>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.17</version>
             <scope>test</scope>
         </dependency>
 

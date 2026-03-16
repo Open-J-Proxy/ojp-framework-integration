@@ -24,8 +24,8 @@ import jakarta.enterprise.context.ApplicationScoped;
  */
 @DataSourceDefinition(
         name      = "java:app/jdbc/shopservice",
-        className = "org.h2.jdbcx.JdbcDataSource",
-        url       = "jdbc:h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=LEGACY",
+        className = "org.openjproxy.jdbc.OjpDataSource",
+        url       = "jdbc:ojp[localhost:1059]_h2:mem:shopdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=LEGACY",
         user      = "sa",
         password  = "")
 @ApplicationScoped
