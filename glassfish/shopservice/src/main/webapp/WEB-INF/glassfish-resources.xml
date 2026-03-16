@@ -35,7 +35,7 @@
             For a remote PostgreSQL server, change the second 'localhost' to the DB host.
         -->
         <property name="url"
-                  value="jdbc:ojp[localhost:5432]_postgresql://localhost/shopservice_db"/>
+                  value="jdbc:ojp[localhost:1059]_postgresql://localhost/shopservice_db"/>
         <property name="user" value="shopuser"/>
         <property name="password" value="shoppass"/>
     </jdbc-connection-pool>

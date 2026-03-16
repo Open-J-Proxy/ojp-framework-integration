@@ -1,5 +1,11 @@
 # Spring Boot Narayana - Distributed Transaction Testing
 
+> [!WARNING]
+> This application was built primarily for **integration testing** with OJP (Open JDBC Proxy).
+> Running it outside the integration-testing context will require additional changes: a live
+> OJP proxy, two PostgreSQL instances, Docker for Testcontainers, and proper XA transaction
+> configuration.
+
 A Spring Boot application demonstrating distributed (XA) transactions using Narayana transaction manager across two separate PostgreSQL databases.
 
 ## Overview

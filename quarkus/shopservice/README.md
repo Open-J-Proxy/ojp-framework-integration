@@ -1,5 +1,11 @@
 # ShopService (Quarkus Edition)
 
+> [!WARNING]
+> This application was built primarily for **integration testing** with OJP (Open JDBC Proxy).
+> Running it outside the integration-testing context (as a standalone service) will require
+> additional changes: a live OJP proxy, a PostgreSQL instance, and adjustments to the
+> datasource configuration in `application.properties`.
+
 A sample Java RESTful API for managing a shop’s users, products, orders, order items, and product reviews, built with [Quarkus](https://quarkus.io/).  
 This project demonstrates a multi-entity, relational domain model with CRUD operations, integration testing, and an H2 in-memory database for tests integrated with OJP (Open J Proxy).
 
