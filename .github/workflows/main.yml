@@ -107,6 +107,26 @@ jobs:
         run: mvn clean verify
         working-directory: glassfish/shopservice
 
+      - name: Run OJP Spring Boot Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: spring-boot/shopservice
+
+      - name: Run OJP Quarkus Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: quarkus/shopservice
+
+      - name: Run OJP Micronaut Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: micronaut/shopservice
+
+      - name: Run OJP Spring Boot with Atomikos Integration tests
+        run: mvn clean verify
+        working-directory: spring-boot-atomikos
+
+      - name: Run OJP Spring Boot with Narayana Integration tests
+        run: mvn clean verify
+        working-directory: spring-boot-narayana
+
       - name: Show ojp-server.log
         if: always()  # ensures it runs even if previous steps fail
         run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
