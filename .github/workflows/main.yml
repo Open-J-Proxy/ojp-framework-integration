@@ -103,6 +103,10 @@ jobs:
       - name: Wait for ojp-server to start
         run: sleep 10
 
+      - name: Run OJP GlassFish Integration tests (shopservice)
+        run: mvn clean verify
+        working-directory: glassfish/shopservice
+
       - name: Run OJP Spring Boot Integration tests (shopservice)
         run: mvn clean verify
         working-directory: spring-boot/shopservice

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources PUBLIC
+    "-//GlassFish.org//DTD GlassFish Application Server 3.1 Resource Definitions//EN"
+    "http://glassfish.org/dtds/glassfish-resources_1_5.dtd">
+
+<!--
+    GlassFish JDBC resources for the shopservice application.
+    GlassFish processes this file on deployment and creates the JDBC pool and resource.
+
+    The OJP JDBC driver jar must be placed in the GlassFish domain's lib/ directory
+    (e.g. glassfish/domains/domain1/lib/) before starting the server so that GlassFish's
+    connection pool manager can load the driver class.
+
+    IMPORTANT: Client-side connection pooling is disabled (steady-pool-size="0",
+    max-connection-usage-count="1"). OJP handles all connection pooling on the
+    server (proxy) side. Having an active client-side pool would interfere with
+    OJP's connection management. This matches the approach used in the other
+    framework implementations in this repository (Spring Boot: SimpleDriverDataSource,
+    Micronaut: bare DriverManager, Quarkus: unpooled=true).
+-->
+<resources>
+
+    <jdbc-connection-pool
+        name="ShopServicePool"
+        res-type="java.sql.Driver"
+        driver-classname="org.openjproxy.jdbc.Driver"
+        steady-pool-size="0"
+        idle-timeout-in-seconds="0"
+        max-connection-usage-count="1">
+        <!--
+            OJP JDBC URL format: jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>
+            In the URL below:
+              - localhost:5432 is the OJP proxy server address (can be a separate host in production)
+              - postgresql://localhost/shopservice_db is the backend PostgreSQL address seen by the proxy
+            For a remote PostgreSQL server, change the second 'localhost' to the DB host.
+        -->
+        <property name="url"
+                  value="jdbc:ojp[localhost:1059]_postgresql://localhost/shopservice_db"/>
+        <property name="user" value="shopuser"/>
+        <property name="password" value="shoppass"/>
+    </jdbc-connection-pool>
+
+    <jdbc-resource
+        jndi-name="jdbc/shopservice"
+        pool-name="ShopServicePool"/>
+
+</resources>

@@ -1,5 +1,11 @@
 # ShopService
 
+> [!WARNING]
+> This application was built primarily for **integration testing** with OJP (Open JDBC Proxy).
+> Running it outside the integration-testing context (as a standalone service) will require
+> additional changes: a live OJP proxy, a PostgreSQL instance, and adjustments to the
+> datasource configuration in `application.properties`.
+
 A sample Spring Boot RESTful API for validating integration with OJP(Open J proxy).
 The sample app is intended for managing a shop’s users, products, orders, order items, and product reviews.  
 This project demonstrates a multi-entity, relational domain model with CRUD operations, integration testing, and a PostgreSQL (or H2 for tests) backend.

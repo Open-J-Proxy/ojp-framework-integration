@@ -1,5 +1,11 @@
 # ShopService - Micronaut Implementation
 
+> [!WARNING]
+> This application was built primarily for **integration testing** with OJP (Open JDBC Proxy).
+> Running it outside the integration-testing context (as a standalone service) will require
+> additional changes: a live OJP proxy, a PostgreSQL instance, and adjustments to the
+> datasource configuration in `application.properties`.
+
 A Micronaut implementation of the ShopService application, providing the same REST API as the Spring Boot version.
 
 ## Features
