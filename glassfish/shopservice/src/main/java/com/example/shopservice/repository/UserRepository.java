@@ -4,7 +4,6 @@ import com.example.shopservice.entity.User;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,18 +34,5 @@ public class UserRepository {
         if (user == null) return false;
         em.remove(user);
         return true;
-    }
-
-    public List<User> saveAll(Iterable<User> users) {
-        List<User> saved = new ArrayList<>();
-        for (User user : users) {
-            saved.add(save(user));
-        }
-        em.flush();
-        return saved;
-    }
-
-    public void deleteAll() {
-        em.createQuery("DELETE FROM User").executeUpdate();
     }
 }
