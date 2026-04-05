@@ -7,11 +7,13 @@ import com.example.shopservice.entity.Product;
 import com.example.shopservice.entity.Review;
 import com.example.shopservice.entity.User;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.transaction.Status;
+import jakarta.transaction.UserTransaction;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.junit5.ArquillianExtension;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -30,6 +32,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>The deployment is {@code testable = true} (the default), so this test class is
  * deployed inside the embedded GlassFish container and CDI injection works normally.
+ *
+ * <p>Transactions are managed programmatically via {@link UserTransaction} because
+ * {@code @Transactional} on test methods is not intercepted by CDI in Arquillian
+ * in-container tests (the test class is not a CDI bean). Each test runs inside a JTA
+ * transaction started in {@code @BeforeEach}; {@code @AfterEach} rolls it back, which
+ * also provides automatic test isolation without needing explicit cleanup SQL.
  */
 @ExtendWith(ArquillianExtension.class)
 public class SaveAllRepositoryTest {
@@ -38,6 +46,9 @@ public class SaveAllRepositoryTest {
     public static WebArchive createDeployment() {
         return DeploymentFactory.createDeployment();
     }
+
+    @Inject
+    private UserTransaction utx;
 
     @Inject
     private UserRepository userRepository;
@@ -50,20 +61,22 @@ public class SaveAllRepositoryTest {
     @Inject
     private OrderItemRepository orderItemRepository;
 
+    @BeforeEach
+    void beginTx() throws Exception {
+        utx.begin();
+    }
+
     @AfterEach
-    @Transactional
-    void cleanup() {
-        orderItemRepository.deleteAll();
-        orderRepository.deleteAll();
-        reviewRepository.deleteAll();
-        userRepository.deleteAll();
-        productRepository.deleteAll();
+    void rollbackTx() throws Exception {
+        if (utx.getStatus() == Status.STATUS_ACTIVE
+                || utx.getStatus() == Status.STATUS_MARKED_ROLLBACK) {
+            utx.rollback();
+        }
     }
 
     // ── User ──────────────────────────────────────────────────────────────────
 
     @Test
-    @Transactional
     public void testUserSaveAll() {
         List<User> saved = userRepository.saveAll(List.of(
                 user("alice", "alice@example.com"),
@@ -74,7 +87,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testUserFindAll() {
         userRepository.saveAll(List.of(
                 user("alice2", "alice2@example.com"),
@@ -87,7 +99,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testUserDeleteAll() {
         userRepository.saveAll(List.of(
                 user("alice3", "alice3@example.com"),
@@ -101,7 +112,6 @@ public class SaveAllRepositoryTest {
     // ── Product ───────────────────────────────────────────────────────────────
 
     @Test
-    @Transactional
     public void testProductSaveAll() {
         List<Product> saved = productRepository.saveAll(List.of(
                 product("Widget", "9.99"),
@@ -112,7 +122,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testProductFindAll() {
         productRepository.saveAll(List.of(
                 product("Widget2", "9.99"),
@@ -125,7 +134,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testProductDeleteAll() {
         productRepository.saveAll(List.of(
                 product("Widget3", "9.99"),
@@ -139,7 +147,6 @@ public class SaveAllRepositoryTest {
     // ── Review ────────────────────────────────────────────────────────────────
 
     @Test
-    @Transactional
     public void testReviewSaveAll() {
         User u = userRepository.save(user("rev_alice", "rev_alice@example.com"));
         Product p = productRepository.save(product("Rev Widget", "9.99"));
@@ -153,7 +160,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testReviewFindAll() {
         User u = userRepository.save(user("rev_bob", "rev_bob@example.com"));
         Product p = productRepository.save(product("Rev Gadget", "19.99"));
@@ -168,7 +174,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testReviewDeleteAll() {
         User u = userRepository.save(user("rev_charlie", "rev_charlie@example.com"));
         Product p = productRepository.save(product("Rev Doohickey", "4.50"));
@@ -184,7 +189,6 @@ public class SaveAllRepositoryTest {
     // ── Order ─────────────────────────────────────────────────────────────────
 
     @Test
-    @Transactional
     public void testOrderSaveAll() {
         User u = userRepository.save(user("ord_alice", "ord_alice@example.com"));
 
@@ -195,7 +199,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testOrderFindAll() {
         User u = userRepository.save(user("ord_bob", "ord_bob@example.com"));
         orderRepository.saveAll(List.of(order(u), order(u), order(u)));
@@ -206,7 +209,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testOrderDeleteAll() {
         User u = userRepository.save(user("ord_charlie", "ord_charlie@example.com"));
         orderRepository.saveAll(List.of(order(u), order(u)));
@@ -219,7 +221,6 @@ public class SaveAllRepositoryTest {
     // ── OrderItem ─────────────────────────────────────────────────────────────
 
     @Test
-    @Transactional
     public void testOrderItemSaveAll() {
         User u = userRepository.save(user("oi_alice", "oi_alice@example.com"));
         Product p = productRepository.save(product("OI Widget", "10.00"));
@@ -234,7 +235,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testOrderItemFindAll() {
         User u = userRepository.save(user("oi_bob", "oi_bob@example.com"));
         Product p = productRepository.save(product("OI Gadget", "5.50"));
@@ -250,7 +250,6 @@ public class SaveAllRepositoryTest {
     }
 
     @Test
-    @Transactional
     public void testOrderItemDeleteAll() {
         User u = userRepository.save(user("oi_charlie", "oi_charlie@example.com"));
         Product p = productRepository.save(product("OI Doohickey", "4.00"));
