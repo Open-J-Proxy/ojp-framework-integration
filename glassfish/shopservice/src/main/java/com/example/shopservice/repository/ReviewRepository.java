@@ -4,6 +4,7 @@ import com.example.shopservice.entity.Review;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,5 +35,17 @@ public class ReviewRepository {
         if (review == null) return false;
         em.remove(review);
         return true;
+    }
+
+    public List<Review> saveAll(Iterable<Review> reviews) {
+        List<Review> saved = new ArrayList<>();
+        for (Review review : reviews) {
+            saved.add(save(review));
+        }
+        return saved;
+    }
+
+    public void deleteAll() {
+        em.createQuery("DELETE FROM Review").executeUpdate();
     }
 }

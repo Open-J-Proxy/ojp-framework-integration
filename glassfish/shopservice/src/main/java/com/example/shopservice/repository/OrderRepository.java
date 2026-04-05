@@ -4,6 +4,7 @@ import com.example.shopservice.entity.Order;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,5 +35,17 @@ public class OrderRepository {
         if (order == null) return false;
         em.remove(order);
         return true;
+    }
+
+    public List<Order> saveAll(Iterable<Order> orders) {
+        List<Order> saved = new ArrayList<>();
+        for (Order order : orders) {
+            saved.add(save(order));
+        }
+        return saved;
+    }
+
+    public void deleteAll() {
+        em.createQuery("DELETE FROM Order").executeUpdate();
     }
 }
