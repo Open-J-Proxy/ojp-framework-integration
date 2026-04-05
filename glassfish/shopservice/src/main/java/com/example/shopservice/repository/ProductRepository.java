@@ -42,6 +42,7 @@ public class ProductRepository {
         for (Product product : products) {
             saved.add(save(product));
         }
+        em.flush();
         return saved;
     }
 

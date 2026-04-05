@@ -42,6 +42,7 @@ public class UserRepository {
         for (User user : users) {
             saved.add(save(user));
         }
+        em.flush();
         return saved;
     }
 

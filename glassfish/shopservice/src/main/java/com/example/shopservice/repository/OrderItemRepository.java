@@ -50,6 +50,7 @@ public class OrderItemRepository {
         for (OrderItem item : items) {
             saved.add(save(item));
         }
+        em.flush();
         return saved;
     }
 

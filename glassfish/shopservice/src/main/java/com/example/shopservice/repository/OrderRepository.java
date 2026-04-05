@@ -42,6 +42,7 @@ public class OrderRepository {
         for (Order order : orders) {
             saved.add(save(order));
         }
+        em.flush();
         return saved;
     }
 

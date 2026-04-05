@@ -42,6 +42,7 @@ public class ReviewRepository {
         for (Review review : reviews) {
             saved.add(save(review));
         }
+        em.flush();
         return saved;
     }
 
