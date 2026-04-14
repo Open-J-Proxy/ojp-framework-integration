@@ -28,14 +28,16 @@
         idle-timeout-in-seconds="0"
         max-connection-usage-count="1">
         <!--
-            OJP JDBC URL format: jdbc:ojp[<ojp-host>:<ojp-port>]_<backend-jdbc-url>
-            In the URL below:
-              - localhost:5432 is the OJP proxy server address (can be a separate host in production)
-              - postgresql://localhost/shopservice_db is the backend PostgreSQL address seen by the proxy
-            For a remote PostgreSQL server, change the second 'localhost' to the DB host.
+            OJP JDBC URL format: jdbc:ojp[<ojp-host>:<ojp-port>,...]_<backend-jdbc-url>
+            In the URL below, three OJP proxy servers are listed for high availability.
+            Each server address is the OJP proxy host:port (not the backend database port).
+            All three servers connect to the same backend PostgreSQL instance.
+            For a remote PostgreSQL server, change the backend host to the DB host.
+            Note: commas are XML-escaped as &#44; so GlassFish does not treat them as
+            property-value list separators; the OJP driver receives the full multinode URL.
         -->
         <property name="url"
-                  value="jdbc:ojp[localhost:1059]_postgresql://localhost/shopservice_db"/>
+                  value="jdbc:ojp[localhost:1059&#44;localhost:1060&#44;localhost:1061]_postgresql://localhost/shopservice_db"/>
         <property name="user" value="shopuser"/>
         <property name="password" value="shoppass"/>
     </jdbc-connection-pool>
