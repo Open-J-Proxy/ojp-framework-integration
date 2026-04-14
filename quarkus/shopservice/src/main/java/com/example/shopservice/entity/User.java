@@ -17,5 +17,4 @@ public class User extends PanacheEntity {
     public String email;
 
     public LocalDateTime createdAt;
-    public LocalDateTime updatedAt;
 }
