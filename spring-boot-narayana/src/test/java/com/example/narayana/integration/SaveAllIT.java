@@ -45,12 +45,12 @@ public class SaveAllIT {
 
     @DynamicPropertySource
     static void setProperties(DynamicPropertyRegistry registry) {
-        String urlPostgres = postgresContainer.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres)]_postgresql");
+        String urlPostgres = postgresContainer.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres),localhost:1060(postgres),localhost:1061(postgres)]_postgresql");
         registry.add("spring.datasource.postgres.url", () -> urlPostgres);
         registry.add("spring.datasource.postgres.username", postgresContainer::getUsername);
         registry.add("spring.datasource.postgres.password", postgresContainer::getPassword);
 
-        String urlPostgres2 = postgres2Container.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres2)]_postgresql");
+        String urlPostgres2 = postgres2Container.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres2),localhost:1060(postgres2),localhost:1061(postgres2)]_postgresql");
         registry.add("spring.datasource.postgres2.url", () -> urlPostgres2);
         registry.add("spring.datasource.postgres2.username", postgres2Container::getUsername);
         registry.add("spring.datasource.postgres2.password", postgres2Container::getPassword);
