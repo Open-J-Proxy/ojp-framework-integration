@@ -5,7 +5,6 @@ import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.repository.postgres.AccountRepository;
 import com.example.atomikos.repository.postgres2.AuditLogRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext
-@Disabled //Disabling until Atomikos implements support for non pooled connections, current Atomikos implementation is incompatible with OJP as per OJP must manage the pool in the proxy.
 public class DistributedTransactionConnectionIT {
 
     @Container
