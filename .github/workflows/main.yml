@@ -99,9 +99,9 @@ jobs:
       - name: Run 3 OJP servers (ports 1059, 1060, 1061)
         run: |
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
         working-directory: ojp
 
       - name: Wait for OJP servers to start
@@ -129,9 +129,9 @@ jobs:
           fuser -k 1059/tcp 1060/tcp 1061/tcp || true
           sleep 2
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
           sleep 15
         working-directory: ojp
 
@@ -145,9 +145,9 @@ jobs:
           fuser -k 1059/tcp 1060/tcp 1061/tcp || true
           sleep 2
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
           sleep 15
         working-directory: ojp
 
