@@ -1,6 +1,6 @@
 package com.example.atomikos.config;
 
-import com.atomikos.jdbc.AtomikosDataSourceBean;
+import com.atomikos.jdbc.AtomikosNonPoolingDataSourceBean;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -33,7 +33,7 @@ public class PostgresDataSourceConfig {
     @Primary
     @Bean(name = "postgresDataSource", destroyMethod = "close")
     public DataSource postgresDataSource(@Qualifier("postgresDataSourceProperties") DataSourceProperties properties) {
-        AtomikosDataSourceBean dataSource = new AtomikosDataSourceBean();
+        AtomikosNonPoolingDataSourceBean dataSource = new AtomikosNonPoolingDataSourceBean();
         dataSource.setUniqueResourceName("postgresDS");
         dataSource.setXaDataSourceClassName("org.openjproxy.jdbc.xa.OjpXADataSource");
         
@@ -42,10 +42,6 @@ public class PostgresDataSourceConfig {
         xaProperties.setProperty("user", properties.getUsername());
         xaProperties.setProperty("password", properties.getPassword());
         dataSource.setXaProperties(xaProperties);
-        
-        dataSource.setMinPoolSize(1);
-        dataSource.setMaxPoolSize(5);
-        dataSource.setTestQuery("SELECT 1");
         
         return dataSource;
     }
