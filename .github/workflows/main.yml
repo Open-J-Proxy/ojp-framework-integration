@@ -123,9 +123,33 @@ jobs:
         run: mvn clean verify
         working-directory: micronaut/shopservice
 
+      - name: Restart OJP servers before Atomikos tests
+        run: |
+          # Kill any OJP server processes still holding ports 1059, 1060, 1061
+          fuser -k 1059/tcp 1060/tcp 1061/tcp || true
+          sleep 2
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
+          sleep 15
+        working-directory: ojp
+
       - name: Run OJP Spring Boot with Atomikos Integration tests
         run: mvn clean verify
         working-directory: spring-boot-atomikos
+
+      - name: Restart OJP servers before Narayana tests
+        run: |
+          # Kill any OJP server processes still holding ports 1059, 1060, 1061
+          fuser -k 1059/tcp 1060/tcp 1061/tcp || true
+          sleep 2
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" >> /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" >> /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" >> /tmp/ojp-server-3.log 2>&1 &
+          sleep 15
+        working-directory: ojp
 
       - name: Run OJP Spring Boot with Narayana Integration tests
         run: mvn clean verify
