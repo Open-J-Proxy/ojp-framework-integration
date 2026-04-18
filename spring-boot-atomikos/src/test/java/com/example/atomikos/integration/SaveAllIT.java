@@ -8,13 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,36 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Testcontainers
-@DirtiesContext
-public class SaveAllIT {
-
-    @Container
-    static PostgreSQLContainer<?> postgresContainer = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("accountsdb")
-            .withUsername("test")
-            .withPassword("test")
-            .withCommand("postgres -c max_prepared_transactions=10");
-
-    @Container
-    static PostgreSQLContainer<?> postgres2Container = new PostgreSQLContainer<>("postgres:15-alpine")
-            .withDatabaseName("auditdb")
-            .withUsername("test")
-            .withPassword("test")
-            .withCommand("postgres -c max_prepared_transactions=10");
-
-    @DynamicPropertySource
-    static void setProperties(DynamicPropertyRegistry registry) {
-        String urlPostgres = postgresContainer.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres),localhost:1060(postgres),localhost:1061(postgres)]_postgresql");
-        registry.add("spring.datasource.postgres.url", () -> urlPostgres);
-        registry.add("spring.datasource.postgres.username", postgresContainer::getUsername);
-        registry.add("spring.datasource.postgres.password", postgresContainer::getPassword);
-
-        String urlPostgres2 = postgres2Container.getJdbcUrl().replaceAll("jdbc:postgresql", "jdbc:ojp[localhost:1059(postgres2),localhost:1060(postgres2),localhost:1061(postgres2)]_postgresql");
-        registry.add("spring.datasource.postgres2.url", () -> urlPostgres2);
-        registry.add("spring.datasource.postgres2.username", postgres2Container::getUsername);
-        registry.add("spring.datasource.postgres2.password", postgres2Container::getPassword);
-    }
+public class SaveAllIT extends AbstractAtomikosIT {
 
     @Autowired
     private AccountRepository accountRepository;
