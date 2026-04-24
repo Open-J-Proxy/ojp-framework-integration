@@ -14,12 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout shopservice code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Checkout OJP repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: Open-JDBC-Proxy/ojp
           fetch-depth: 0
@@ -27,7 +27,7 @@ jobs:
           path: ojp
 
       - name: Set up JDK 22
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '22'
