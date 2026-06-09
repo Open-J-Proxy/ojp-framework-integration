@@ -13,7 +13,7 @@
     <description>Spring Boot application with Narayana for distributed (XA) transactions</description>
 
     <properties>
-        <java.version>25</java.version>
+        <java.version>21</java.version>
         <spring-boot.version>3.2.6</spring-boot.version>
         <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
@@ -95,21 +95,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>default-testCompile</id>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                        <configuration>
-                            <release>21</release>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
