@@ -1,5 +1,7 @@
 package com.example.shopservice.controller;
 
+import com.example.shopservice.ShopServiceApplication;
+
 import com.example.shopservice.entity.catalog.User;
 import com.example.shopservice.repository.catalog.ReviewRepository;
 import com.example.shopservice.repository.catalog.UserRepository;
@@ -20,7 +22,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(classes = ShopServiceApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @org.springframework.context.annotation.Import(config.SqlInitConfig.class)

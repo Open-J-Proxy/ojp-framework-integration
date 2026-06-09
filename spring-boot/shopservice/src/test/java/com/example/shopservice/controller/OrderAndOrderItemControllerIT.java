@@ -1,5 +1,7 @@
 package com.example.shopservice.controller;
 
+import com.example.shopservice.ShopServiceApplication;
+
 import com.example.shopservice.entity.checkout.Order;
 import com.example.shopservice.entity.catalog.Product;
 import com.example.shopservice.entity.catalog.User;
@@ -23,7 +25,7 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(classes = ShopServiceApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 public class OrderAndOrderItemControllerIT {

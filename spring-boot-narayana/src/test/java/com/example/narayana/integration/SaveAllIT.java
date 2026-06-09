@@ -1,5 +1,7 @@
 package com.example.narayana.integration;
 
+import com.example.narayana.NarayanaApplication;
+
 import com.example.narayana.entity.postgres.Account;
 import com.example.narayana.entity.postgres2.AuditLog;
 import com.example.narayana.repository.postgres.AccountRepository;
@@ -23,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = NarayanaApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext

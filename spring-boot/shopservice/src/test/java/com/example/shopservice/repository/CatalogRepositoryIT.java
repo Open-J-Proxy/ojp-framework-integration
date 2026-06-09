@@ -1,5 +1,7 @@
 package com.example.shopservice.repository;
 
+import com.example.shopservice.ShopServiceApplication;
+
 import com.example.shopservice.entity.catalog.Product;
 import com.example.shopservice.entity.catalog.Review;
 import com.example.shopservice.entity.catalog.User;
@@ -20,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest
+@SpringBootTest(classes = ShopServiceApplication.class)
 @ActiveProfiles("test")
 @Import(config.SqlInitConfig.class)
 public class CatalogRepositoryIT {
