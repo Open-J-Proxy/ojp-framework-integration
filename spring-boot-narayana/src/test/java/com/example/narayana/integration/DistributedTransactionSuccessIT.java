@@ -1,5 +1,7 @@
 package com.example.narayana.integration;
 
+import com.example.narayana.NarayanaApplication;
+
 import com.example.narayana.dto.CreateAccountRequest;
 import com.example.narayana.dto.TransferRequest;
 import com.example.narayana.entity.postgres.Account;
@@ -26,7 +28,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = NarayanaApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext

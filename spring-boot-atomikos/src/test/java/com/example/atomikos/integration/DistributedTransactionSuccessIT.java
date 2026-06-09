@@ -1,5 +1,7 @@
 package com.example.atomikos.integration;
 
+import com.example.atomikos.AtomikosApplication;
+
 import com.example.atomikos.dto.CreateAccountRequest;
 import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.entity.postgres.Account;
@@ -26,7 +28,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = AtomikosApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext

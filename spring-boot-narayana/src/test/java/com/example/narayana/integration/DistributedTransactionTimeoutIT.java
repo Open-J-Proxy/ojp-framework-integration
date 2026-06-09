@@ -1,5 +1,7 @@
 package com.example.narayana.integration;
 
+import com.example.narayana.NarayanaApplication;
+
 import com.example.narayana.dto.CreateAccountRequest;
 import com.example.narayana.repository.postgres.AccountRepository;
 import com.example.narayana.repository.postgres2.AuditLogRepository;
@@ -22,7 +24,7 @@ import java.math.BigDecimal;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = NarayanaApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext

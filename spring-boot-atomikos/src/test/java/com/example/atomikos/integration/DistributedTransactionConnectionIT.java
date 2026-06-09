@@ -1,5 +1,7 @@
 package com.example.atomikos.integration;
 
+import com.example.atomikos.AtomikosApplication;
+
 import com.example.atomikos.dto.CreateAccountRequest;
 import com.example.atomikos.dto.TransferRequest;
 import com.example.atomikos.repository.postgres.AccountRepository;
@@ -24,7 +26,7 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(classes = AtomikosApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
 @Testcontainers
 @DirtiesContext
