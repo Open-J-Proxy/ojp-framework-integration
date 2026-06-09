@@ -120,12 +120,6 @@ jobs:
         run: mvn clean verify
         working-directory: glassfish/shopservice
 
-      - name: Restore JDK 25
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '25'
-
       - name: Run OJP Spring Boot Integration tests (shopservice)
         run: mvn clean verify
         working-directory: spring-boot/shopservice
@@ -197,12 +191,6 @@ jobs:
         continue-on-error: true
         run: mvn clean verify
         working-directory: glassfish/shopservice
-
-      - name: Restore JDK 25 for [Partial cluster] remaining tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '25'
 
       - name: "[Partial cluster] Run OJP Micronaut Integration tests (shopservice)"
         continue-on-error: true
