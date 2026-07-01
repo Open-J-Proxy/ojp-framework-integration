@@ -26,7 +26,7 @@ This project demonstrates a multi-entity, relational domain model with CRUD oper
 
 ## Tech Stack
 
-- **Java 21**
+- **Java 25**
 - **Spring Boot 3.2.x**
 - **Spring Data JPA**
 - **PostgreSQL** (main DB, can be swapped for others)
@@ -38,7 +38,7 @@ This project demonstrates a multi-entity, relational domain model with CRUD oper
 
 ## Prerequisites
 
-- Java 21+
+- Java 25+
 - Maven 3.8+
 - PostgreSQL (if running with real DB, not needed for tests)
 - (Optional) Docker, Postman, etc.
@@ -116,4 +116,3 @@ Integration tests are provided for all controllers.
 - This will build the project and execute all unit and integration tests.
 - Integration tests use H2 in-memory database with test-specific properties (`src/test/resources/application-test.properties`).
 - If you want to run only unit tests, use `mvn test` (not recommended for this project, as all tests are integration tests).
-

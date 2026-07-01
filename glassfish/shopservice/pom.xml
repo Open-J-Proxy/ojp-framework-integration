@@ -9,7 +9,7 @@
     <packaging>war</packaging>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -140,7 +140,7 @@
                         <include>**/*IT.java</include>
                     </includes>
                     <!--
-                        GlassFish 7 Embedded running under Java 17+ needs JVM add-opens flags
+                        GlassFish 7 Embedded running under Java 25+ needs JVM add-opens flags
                         so that Weld can generate proxy classes for built-in CDI beans
                         (e.g. jakarta.transaction.UserTransaction) without hitting WELD-001524.
                         These are the same flags that GlassFish's own startup scripts pass to
