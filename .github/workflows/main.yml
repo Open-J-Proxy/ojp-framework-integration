@@ -110,21 +110,9 @@ jobs:
       - name: Wait for OJP servers to start
         run: sleep 15
 
-      - name: Set up JDK 21 for GlassFish tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: Run OJP GlassFish Integration tests (shopservice)
         run: mvn clean verify
         working-directory: glassfish/shopservice
-
-      - name: Set up JDK 25 for remaining framework tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '25'
 
       - name: Run OJP Spring Boot Integration tests (shopservice)
         run: mvn clean verify
@@ -187,22 +175,10 @@ jobs:
       - name: Wait for single OJP server to start
         run: sleep 15
 
-      - name: Set up JDK 21 for [Partial cluster] GlassFish tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
       - name: "[Partial cluster] Run OJP GlassFish Integration tests (shopservice)"
         continue-on-error: true
         run: mvn clean verify
         working-directory: glassfish/shopservice
-
-      - name: Set up JDK 25 for remaining [Partial cluster] framework tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '25'
 
       - name: "[Partial cluster] Run OJP Micronaut Integration tests (shopservice)"
         continue-on-error: true
