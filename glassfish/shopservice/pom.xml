@@ -147,6 +147,7 @@
                         the JVM when launching a full GlassFish server.
                     -->
                     <argLine>
+                        -Djakarta.security.jacc.PolicyConfigurationFactory.provider=org.glassfish.exousia.modules.locked.SimplePolicyConfigurationFactory
                         --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.lang.reflect=ALL-UNNAMED
