@@ -13,7 +13,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <glassfish.version>7.0.21</glassfish.version>
+        <glassfish.version>7.0.26</glassfish.version>
         <arquillian.version>1.9.1.Final</arquillian.version>
         <junit.version>5.10.2</junit.version>
         <rest-assured.version>5.4.0</rest-assured.version>
