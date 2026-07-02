@@ -10,12 +10,12 @@
     <description>Spring Boot Shop Service</description>
     <properties>
         <java.version>25</java.version>
-        <spring-boot.version>3.2.6</spring-boot.version>
+        <spring-boot.version>4.1.0</spring-boot.version>
     </properties>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.6</version>
+        <version>4.1.0</version>
         <relativePath/>
     </parent>
     <dependencies>
