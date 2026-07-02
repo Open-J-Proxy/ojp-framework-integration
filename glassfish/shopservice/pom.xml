@@ -10,10 +10,10 @@
 
     <properties>
         <java.version>25</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <glassfish.version>7.0.26</glassfish.version>
+        <glassfish.version>8.0.3</glassfish.version>
         <arquillian.version>1.9.1.Final</arquillian.version>
         <junit.version>5.10.2</junit.version>
         <rest-assured.version>5.4.0</rest-assured.version>
@@ -76,7 +76,7 @@
         </dependency>
 
         <!--
-            GlassFish 7 Embedded Arquillian adapter (OmniFaces project).
+            GlassFish Embedded Arquillian adapter (OmniFaces project).
             Requires glassfish-embedded-all on the test classpath.
         -->
         <dependency>
@@ -86,7 +86,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- GlassFish 7 Embedded server (Jakarta EE 10) -->
+        <!-- GlassFish 8 Embedded server (Jakarta EE 11) -->
         <dependency>
             <groupId>org.glassfish.main.extras</groupId>
             <artifactId>glassfish-embedded-all</artifactId>
@@ -118,7 +118,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <release>21</release>
+                    <release>25</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -140,7 +140,7 @@
                         <include>**/*IT.java</include>
                     </includes>
                     <!--
-                        GlassFish 7 Embedded running under Java 25+ needs JVM add-opens flags
+                        GlassFish Embedded running under Java 25+ needs JVM add-opens flags
                         so that Weld can generate proxy classes for built-in CDI beans
                         (e.g. jakarta.transaction.UserTransaction) without hitting WELD-001524.
                         These are the same flags that GlassFish's own startup scripts pass to
