@@ -40,7 +40,7 @@ All integration tests validate that operations on both databases are atomic:
 
 ## Tech Stack
 
-- **Java 17** (development) / Java 21 (target - requires environment support)
+- **Java 25** (development) / Java 25 (target - requires environment support)
 - **Spring Boot 3.2.6**
 - **Atomikos 6.0.0** (Spring Boot 3 compatible version with Jakarta EE 9+)
 - **PostgreSQL** (two separate instances via Testcontainers)
@@ -49,7 +49,7 @@ All integration tests validate that operations on both databases are atomic:
 
 ## Prerequisites
 
-- Java 17+ (Java 21 for production deployment)
+- Java 25+ (Java 25 for production deployment)
 - Maven 3.8+
 - Docker (for Testcontainers)
 
@@ -174,7 +174,7 @@ Both PostgreSQL databases are configured identically with XA support. Using two 
 - Transaction timeouts are configured at method level using `@Transactional(timeout = n)`
 - The application demonstrates how Atomikos ensures ACID properties across multiple databases
 - XA transactions require proper configuration of both database drivers and the Atomikos transaction manager
-- **Currently configured for Java 17** for development and testing. The target Java version is 21, but can be adjusted based on the deployment environment.
+- **Currently configured for Java 25** for development and testing. The target Java version is 21, but can be adjusted based on the deployment environment.
 
 ## Known Issues
 
