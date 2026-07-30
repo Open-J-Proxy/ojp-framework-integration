@@ -10,7 +10,9 @@ on:
     types: [ojp-updated]
 
 jobs:
-  build:
+
+  # ── Setup: build OJP once and upload shared artifacts ─────────────────────
+  setup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout shopservice code
@@ -92,56 +94,100 @@ jobs:
         run: bash ojp-server/download-drivers.sh
         working-directory: ojp
 
+      - name: Upload OJP Maven artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojp-maven-artifacts
+          path: ~/.m2/repository/org/openjproxy/
+          retention-days: 1
+
+      - name: Upload OJP server JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojp-server-jar
+          path: ojp/ojp-server/target/ojp-server-*-shaded.jar
+          retention-days: 1
+
+      - name: Upload OJP libs (JDBC drivers)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ojp-libs
+          path: ojp/ojp-libs/
+          retention-days: 1
+
+  # ── Full-cluster: non-Spring-Boot framework tests (one job per framework) ──
+  test-frameworks:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: glassfish
+            working-directory: glassfish/shopservice
+            java-version: '21'
+          - name: quarkus
+            working-directory: quarkus/shopservice
+            java-version: '25'
+          - name: micronaut
+            working-directory: micronaut/shopservice
+            java-version: '25'
+          - name: spring-boot-atomikos
+            working-directory: spring-boot-atomikos
+            java-version: '25'
+          - name: spring-boot-narayana
+            working-directory: spring-boot-narayana
+            java-version: '25'
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
+
+      - name: Download OJP Maven artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-maven-artifacts
+          path: ~/.m2/repository/org/openjproxy/
+
+      - name: Download OJP server JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-server-jar
+          path: /tmp/ojp-server
+
+      - name: Download OJP libs (JDBC drivers)
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-libs
+          path: /tmp/ojp-libs
+
       - name: Clear previous OJP server logs
         run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
-        working-directory: ojp
 
       - name: Run 3 OJP servers (ports 1059, 1060, 1061)
         run: |
-          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          OJP_JAR=$(ls /tmp/ojp-server/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
           echo $! > /tmp/ojp-server-2.pid
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
           echo $! > /tmp/ojp-server-3.pid
-        working-directory: ojp
 
       - name: Wait for OJP servers to start
         run: sleep 15
 
-      - name: Set up JDK 21 for GlassFish tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
-
-      - name: Run OJP GlassFish Integration tests (shopservice)
+      - name: Run OJP ${{ matrix.name }} Integration tests
         run: mvn clean verify
-        working-directory: glassfish/shopservice
+        working-directory: ${{ matrix.working-directory }}
 
-      - name: Run OJP Spring Boot Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: spring-boot/shopservice
-
-      - name: Run OJP Quarkus Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: quarkus/shopservice
-
-      - name: Run OJP Micronaut Integration tests (shopservice)
-        run: mvn clean verify
-        working-directory: micronaut/shopservice
-
-      - name: Run OJP Spring Boot with Atomikos Integration tests
-        run: mvn clean verify
-        working-directory: spring-boot-atomikos
-
-      - name: Run OJP Spring Boot with Narayana Integration tests
-        run: mvn clean verify
-        working-directory: spring-boot-narayana
-
-      - name: Show ojp-server logs
-        if: always()  # ensures it runs even if previous steps fail
+      - name: Show OJP server logs
+        if: always()
         run: |
           echo "=== OJP Server 1 (port 1059) ==="
           cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
@@ -152,12 +198,8 @@ jobs:
           echo "=== OJP Server 3 (port 1061) ==="
           cat /tmp/ojp-server-3.log || echo "/tmp/ojp-server-3.log not found"
 
-      # ── Partial-cluster resilience run ─────────────────────────────────────
-      # Goal: assess how each framework behaves when not all OJP servers are
-      # healthy at startup.  Kill every server, bring up only port 1059, rerun
-      # all integration tests, then tear down the single remaining server.
-
-      - name: Kill all OJP servers
+      - name: Kill OJP servers
+        if: always()
         run: |
           for PID_FILE in /tmp/ojp-server-1.pid /tmp/ojp-server-2.pid /tmp/ojp-server-3.pid; do
             if [ -f "$PID_FILE" ]; then
@@ -166,58 +208,246 @@ jobs:
               rm -f "$PID_FILE"
             fi
           done
-          sleep 3
+
+  # ── Full-cluster: Spring Boot shopservice tests (one job per IT class) ──────
+  test-spring-boot:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test-class:
+          - CatalogRepositoryIT
+          - CheckoutRepositoryIT
+          - OrderAndOrderItemControllerIT
+          - OrderItemControllerIT
+          - ProductControllerIT
+          - ReviewControllerIT
+          - UserControllerIT
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Download OJP Maven artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-maven-artifacts
+          path: ~/.m2/repository/org/openjproxy/
+
+      - name: Download OJP server JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-server-jar
+          path: /tmp/ojp-server
+
+      - name: Download OJP libs (JDBC drivers)
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-libs
+          path: /tmp/ojp-libs
+
+      - name: Clear previous OJP server logs
+        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+
+      - name: Run 3 OJP servers (ports 1059, 1060, 1061)
+        run: |
+          OJP_JAR=$(ls /tmp/ojp-server/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          echo $! > /tmp/ojp-server-2.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          echo $! > /tmp/ojp-server-3.pid
+
+      - name: Wait for OJP servers to start
+        run: sleep 15
+
+      - name: Run OJP Spring Boot Integration test (${{ matrix.test-class }})
+        run: mvn clean verify -Dtest=${{ matrix.test-class }}
+        working-directory: spring-boot/shopservice
+
+      - name: Show OJP server logs
+        if: always()
+        run: |
+          echo "=== OJP Server 1 (port 1059) ==="
+          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
+          echo ""
+          echo "=== OJP Server 2 (port 1060) ==="
+          cat /tmp/ojp-server-2.log || echo "/tmp/ojp-server-2.log not found"
+          echo ""
+          echo "=== OJP Server 3 (port 1061) ==="
+          cat /tmp/ojp-server-3.log || echo "/tmp/ojp-server-3.log not found"
+
+      - name: Kill OJP servers
+        if: always()
+        run: |
+          for PID_FILE in /tmp/ojp-server-1.pid /tmp/ojp-server-2.pid /tmp/ojp-server-3.pid; do
+            if [ -f "$PID_FILE" ]; then
+              PID=$(cat "$PID_FILE")
+              kill "$PID" 2>/dev/null || true
+              rm -f "$PID_FILE"
+            fi
+          done
+
+  # ── Gate: all full-cluster tests must pass before partial-cluster ──────────
+  full-cluster-complete:
+    needs: [test-frameworks, test-spring-boot]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All full-cluster tests completed"
+
+  # ── Partial-cluster: non-Spring-Boot framework tests (one job per framework)
+  # Goal: assess how each framework behaves when not all OJP servers are
+  # healthy at startup.  Only port 1059 is available.
+  partial-test-frameworks:
+    needs: full-cluster-complete
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: glassfish
+            working-directory: glassfish/shopservice
+            java-version: '21'
+          - name: quarkus
+            working-directory: quarkus/shopservice
+            java-version: '25'
+          - name: micronaut
+            working-directory: micronaut/shopservice
+            java-version: '25'
+          - name: spring-boot-atomikos
+            working-directory: spring-boot-atomikos
+            java-version: '25'
+          - name: spring-boot-narayana
+            working-directory: spring-boot-narayana
+            java-version: '25'
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.java-version }}
+
+      - name: Download OJP Maven artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-maven-artifacts
+          path: ~/.m2/repository/org/openjproxy/
+
+      - name: Download OJP server JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-server-jar
+          path: /tmp/ojp-server
+
+      - name: Download OJP libs (JDBC drivers)
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-libs
+          path: /tmp/ojp-libs
 
       - name: Clear previous OJP server logs (partial-cluster run)
-        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+        run: rm -f /tmp/ojp-server-1.log
 
       - name: Run single OJP server (port 1059 only)
         run: |
-          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          OJP_JAR=$(ls /tmp/ojp-server/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
-        working-directory: ojp
 
       - name: Wait for single OJP server to start
         run: sleep 15
 
-      - name: Set up JDK 21 for [Partial cluster] GlassFish tests
+      - name: "[Partial cluster] Run OJP ${{ matrix.name }} Integration tests"
+        run: mvn clean verify
+        working-directory: ${{ matrix.working-directory }}
+
+      - name: Show OJP server logs (partial-cluster run)
+        if: always()
+        run: |
+          echo "=== OJP Server 1 (port 1059) ==="
+          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
+
+      - name: Kill remaining OJP server (port 1059)
+        if: always()
+        run: |
+          if [ -f /tmp/ojp-server-1.pid ]; then
+            PID=$(cat /tmp/ojp-server-1.pid)
+            kill "$PID" 2>/dev/null || true
+            rm -f /tmp/ojp-server-1.pid
+          fi
+
+  # ── Partial-cluster: Spring Boot shopservice tests (one job per IT class) ───
+  partial-test-spring-boot:
+    needs: full-cluster-complete
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        test-class:
+          - CatalogRepositoryIT
+          - CheckoutRepositoryIT
+          - OrderAndOrderItemControllerIT
+          - OrderItemControllerIT
+          - ProductControllerIT
+          - ReviewControllerIT
+          - UserControllerIT
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 25
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '25'
 
-      - name: "[Partial cluster] Run OJP GlassFish Integration tests (shopservice)"
-        continue-on-error: true
-        run: mvn clean verify
-        working-directory: glassfish/shopservice
+      - name: Download OJP Maven artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-maven-artifacts
+          path: ~/.m2/repository/org/openjproxy/
 
-      - name: "[Partial cluster] Run OJP Micronaut Integration tests (shopservice)"
-        continue-on-error: true
-        run: mvn clean verify
-        working-directory: micronaut/shopservice
+      - name: Download OJP server JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-server-jar
+          path: /tmp/ojp-server
 
-      - name: "[Partial cluster] Run OJP Quarkus Integration tests (shopservice)"
-        continue-on-error: true
-        run: mvn clean verify
-        working-directory: quarkus/shopservice
+      - name: Download OJP libs (JDBC drivers)
+        uses: actions/download-artifact@v4
+        with:
+          name: ojp-libs
+          path: /tmp/ojp-libs
 
-      - name: "[Partial cluster] Run OJP Spring Boot with Atomikos Integration tests"
-        continue-on-error: true
-        run: mvn clean verify
-        working-directory: spring-boot-atomikos
+      - name: Clear previous OJP server logs (partial-cluster run)
+        run: rm -f /tmp/ojp-server-1.log
 
-      - name: "[Partial cluster] Run OJP Spring Boot with Narayana Integration tests"
-        continue-on-error: true
-        run: mvn clean verify
-        working-directory: spring-boot-narayana
+      - name: Run single OJP server (port 1059 only)
+        run: |
+          OJP_JAR=$(ls /tmp/ojp-server/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=/tmp/ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
 
-      - name: "[Partial cluster] Run OJP Spring Boot Integration tests (shopservice)"
-        continue-on-error: true
-        run: mvn clean verify
+      - name: Wait for single OJP server to start
+        run: sleep 15
+
+      - name: "[Partial cluster] Run OJP Spring Boot Integration test (${{ matrix.test-class }})"
+        run: mvn clean verify -Dtest=${{ matrix.test-class }}
         working-directory: spring-boot/shopservice
 
-      - name: Show ojp-server logs (partial-cluster run)
+      - name: Show OJP server logs (partial-cluster run)
         if: always()
         run: |
           echo "=== OJP Server 1 (port 1059) ==="
