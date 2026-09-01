@@ -9,11 +9,11 @@
     <packaging>war</packaging>
 
     <properties>
-        <java.version>21</java.version>
-        <maven.compiler.source>${java.version}</maven.compiler.source>
-        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <java.version>25</java.version>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.target>25</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <glassfish.version>7.0.21</glassfish.version>
+        <glassfish.version>8.0.3</glassfish.version>
         <arquillian.version>1.9.1.Final</arquillian.version>
         <junit.version>5.10.2</junit.version>
         <rest-assured.version>5.4.0</rest-assured.version>
@@ -32,11 +32,11 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Jakarta EE 10 API - provided by GlassFish at runtime -->
+        <!-- Jakarta EE 11 API - provided by GlassFish 8 at runtime -->
         <dependency>
             <groupId>jakarta.platform</groupId>
             <artifactId>jakarta.jakartaee-api</artifactId>
-            <version>10.0.0</version>
+            <version>11.0.0</version>
             <scope>provided</scope>
         </dependency>
 
@@ -76,7 +76,7 @@
         </dependency>
 
         <!--
-            GlassFish 7 Embedded Arquillian adapter (OmniFaces project).
+            GlassFish Embedded Arquillian adapter (OmniFaces project).
             Requires glassfish-embedded-all on the test classpath.
         -->
         <dependency>
@@ -86,7 +86,7 @@
             <scope>test</scope>
         </dependency>
 
-        <!-- GlassFish 7 Embedded server (Jakarta EE 10) -->
+        <!-- GlassFish 8 Embedded server (Jakarta EE 11) -->
         <dependency>
             <groupId>org.glassfish.main.extras</groupId>
             <artifactId>glassfish-embedded-all</artifactId>
@@ -118,7 +118,7 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
                 <configuration>
-                    <release>${java.version}</release>
+                    <release>25</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -140,13 +140,14 @@
                         <include>**/*IT.java</include>
                     </includes>
                     <!--
-                        GlassFish 7 Embedded running under Java 17+ needs JVM add-opens flags
+                        GlassFish Embedded running under Java 25+ needs JVM add-opens flags
                         so that Weld can generate proxy classes for built-in CDI beans
                         (e.g. jakarta.transaction.UserTransaction) without hitting WELD-001524.
                         These are the same flags that GlassFish's own startup scripts pass to
                         the JVM when launching a full GlassFish server.
                     -->
                     <argLine>
+                        -Djakarta.security.jacc.PolicyConfigurationFactory.provider=org.glassfish.exousia.modules.locked.SimplePolicyConfigurationFactory
                         --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                         --add-opens java.base/java.lang.reflect=ALL-UNNAMED

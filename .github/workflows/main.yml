@@ -100,22 +100,16 @@ jobs:
       - name: Run 3 OJP servers (ports 1059, 1060, 1061)
         run: |
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
           echo $! > /tmp/ojp-server-2.pid
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
           echo $! > /tmp/ojp-server-3.pid
         working-directory: ojp
 
       - name: Wait for OJP servers to start
         run: sleep 15
-
-      - name: Set up JDK 21 for GlassFish tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
 
       - name: Run OJP GlassFish Integration tests (shopservice)
         run: mvn clean verify
@@ -175,18 +169,12 @@ jobs:
       - name: Run single OJP server (port 1059 only)
         run: |
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
-          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
         working-directory: ojp
 
       - name: Wait for single OJP server to start
         run: sleep 15
-
-      - name: Set up JDK 21 for [Partial cluster] GlassFish tests
-        uses: actions/setup-java@v5
-        with:
-          distribution: 'temurin'
-          java-version: '21'
 
       - name: "[Partial cluster] Run OJP GlassFish Integration tests (shopservice)"
         continue-on-error: true

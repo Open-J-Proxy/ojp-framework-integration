@@ -20,7 +20,7 @@ A Micronaut implementation of the ShopService application, providing the same RE
 
 ## Tech Stack
 
-- **Java 17**
+- **Java 25**
 - **Micronaut 4.2.x**
 - **Micronaut Data JPA**
 - **H2** (in-memory DB)
@@ -29,7 +29,7 @@ A Micronaut implementation of the ShopService application, providing the same RE
 
 ## Prerequisites
 
-- Java 17+
+- Java 25+
 - Maven 3.8+
 
 ## Getting Started
