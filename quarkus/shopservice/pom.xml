@@ -82,7 +82,6 @@
                 <configuration>
                     <includes>
                         <include>**/*Test.java</include>
-                        <include>**/*IT.java</include>
                     </includes>
                     <rerunFailingTestsCount>5</rerunFailingTestsCount>
                 </configuration>
