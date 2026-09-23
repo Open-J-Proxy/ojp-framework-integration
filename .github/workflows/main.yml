@@ -172,6 +172,12 @@ jobs:
       - name: Clear previous OJP server logs (partial-cluster run)
         run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
 
+      - name: Set up JDK 25 for partial-cluster OJP server
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
       - name: Run single OJP server (port 1059 only)
         run: |
           OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
