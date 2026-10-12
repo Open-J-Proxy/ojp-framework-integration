@@ -70,8 +70,8 @@ jobs:
           import re, sys
           f = 'spring-boot-starter-ojp/pom.xml'
           c = open(f).read()
-          updated = re.sub(r'(<artifactId>ojp-jdbc-driver<\/artifactId>\s*<version>)[^<]*(<\/version>)', r'\g<1>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION\2', c)
-          if updated == c:
+          updated, matches = re.subn(r'(<artifactId>ojp-jdbc-driver<\/artifactId>\s*<version>)[^<]*(<\/version>)', r'\g<1>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION\2', c)
+          if matches == 0:
               print('ERROR: ojp-jdbc-driver version not updated in spring-boot-starter-ojp/pom.xml', file=sys.stderr)
               sys.exit(1)
           open(f, 'w').write(updated)
