@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 import { decimalTransformer } from '../transformers';
 
-@Entity('products')
+@Entity('nodejs_products')
 export class Product {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

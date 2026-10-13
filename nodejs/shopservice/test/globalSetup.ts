@@ -15,8 +15,8 @@ export default async function globalSetup(): Promise<void> {
       port: parseInt(process.env.DB_PORT, 10),
       username: process.env.DB_USER || 'sa',
       password: process.env.DB_PASSWORD || 'TestPassword123!',
-      catalogDbName: 'catalog_db',
-      checkoutDbName: 'checkout_db',
+      catalogDbName: 'nodejs_catalog_db',
+      checkoutDbName: 'nodejs_checkout_db',
     };
     fs.writeFileSync('/tmp/mssql-test-config.json', JSON.stringify(config));
     await ensureDatabasesExist(config);
@@ -36,8 +36,8 @@ export default async function globalSetup(): Promise<void> {
     port: container.getPort(),
     username: container.getUsername(),
     password: container.getPassword(),
-    catalogDbName: 'catalog_db',
-    checkoutDbName: 'checkout_db',
+    catalogDbName: 'nodejs_catalog_db',
+    checkoutDbName: 'nodejs_checkout_db',
   };
 
   fs.writeFileSync('/tmp/mssql-test-config.json', JSON.stringify(config));

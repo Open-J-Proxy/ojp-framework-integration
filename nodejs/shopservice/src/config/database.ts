@@ -20,8 +20,8 @@ export async function ensureDatabasesExist(config?: DatabaseConfig): Promise<voi
   const port = config?.port || parseInt(process.env.DB_PORT || '1433', 10);
   const user = config?.username || process.env.DB_USER || 'sa';
   const password = config?.password || process.env.DB_PASSWORD || 'TestPassword123!';
-  const catalogDb = config?.catalogDbName || process.env.CATALOG_DB_NAME || 'catalog_db';
-  const checkoutDb = config?.checkoutDbName || process.env.CHECKOUT_DB_NAME || 'checkout_db';
+  const catalogDb = config?.catalogDbName || process.env.CATALOG_DB_NAME || process.env.CATALOG_DB || 'nodejs_catalog_db';
+  const checkoutDb = config?.checkoutDbName || process.env.CHECKOUT_DB_NAME || process.env.CHECKOUT_DB || 'nodejs_checkout_db';
 
   const sqlConfig: mssql.config = {
     user,
@@ -56,7 +56,7 @@ export function createCatalogDataSource(
   const port = config?.port || parseInt(process.env.DB_PORT || '1433', 10);
   const username = config?.username || process.env.DB_USER || 'sa';
   const password = config?.password || process.env.DB_PASSWORD || 'TestPassword123!';
-  const database = config?.catalogDbName || process.env.CATALOG_DB_NAME || 'catalog_db';
+  const database = config?.catalogDbName || process.env.CATALOG_DB_NAME || process.env.CATALOG_DB || 'nodejs_catalog_db';
 
   return new DataSource({
     type: 'mssql',
@@ -84,7 +84,7 @@ export function createCheckoutDataSource(
   const port = config?.port || parseInt(process.env.DB_PORT || '1433', 10);
   const username = config?.username || process.env.DB_USER || 'sa';
   const password = config?.password || process.env.DB_PASSWORD || 'TestPassword123!';
-  const database = config?.checkoutDbName || process.env.CHECKOUT_DB_NAME || 'checkout_db';
+  const database = config?.checkoutDbName || process.env.CHECKOUT_DB_NAME || process.env.CHECKOUT_DB || 'nodejs_checkout_db';
 
   return new DataSource({
     type: 'mssql',

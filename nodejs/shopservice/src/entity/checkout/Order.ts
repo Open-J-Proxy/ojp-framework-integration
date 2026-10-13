@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { OrderItem } from './OrderItem';
 import { bigintTransformer } from '../transformers';
 
-@Entity('orders')
+@Entity('nodejs_orders')
 export class Order {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

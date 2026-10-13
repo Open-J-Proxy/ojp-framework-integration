@@ -17,8 +17,8 @@ export function getDbConfig(): DatabaseConfig {
       port: data.port,
       username: data.username,
       password: data.password,
-      catalogDbName: 'catalog_db',
-      checkoutDbName: 'checkout_db',
+      catalogDbName: 'nodejs_catalog_db',
+      checkoutDbName: 'nodejs_checkout_db',
     };
   }
   return {
@@ -26,8 +26,8 @@ export function getDbConfig(): DatabaseConfig {
     port: parseInt(process.env.DB_PORT || '1433', 10),
     username: process.env.DB_USER || 'sa',
     password: process.env.DB_PASSWORD || 'TestPassword123!',
-    catalogDbName: 'catalog_db',
-    checkoutDbName: 'checkout_db',
+    catalogDbName: 'nodejs_catalog_db',
+    checkoutDbName: 'nodejs_checkout_db',
   };
 }
 

@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 import { User } from './User';
 import { Product } from './Product';
 
-@Entity('reviews')
+@Entity('nodejs_reviews')
 export class Review {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

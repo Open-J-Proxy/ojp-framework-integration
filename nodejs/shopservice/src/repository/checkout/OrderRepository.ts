@@ -66,7 +66,7 @@ export class OrderRepository {
   }
 
   async deleteAll(): Promise<void> {
-    // Delete order_items first to respect foreign keys if cascading delete query builder is used
+    // Delete nodejs_order_items first to respect foreign keys if cascading delete query builder is used
     await this.repo.manager.createQueryBuilder().delete().from(OrderItem).execute();
     await this.repo.createQueryBuilder().delete().from(Order).execute();
   }

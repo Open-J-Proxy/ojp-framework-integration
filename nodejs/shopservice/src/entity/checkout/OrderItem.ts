@@ -2,7 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 't
 import { Order } from './Order';
 import { bigintTransformer } from '../transformers';
 
-@Entity('order_items')
+@Entity('nodejs_order_items')
 export class OrderItem {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;

@@ -12,7 +12,7 @@ A Node.js implementation of the ShopService reference application modeled after 
 - **Order Management** – Place orders for users, managing associated order items (`/orders`, `/orders/:id`).
 - **Order Item Management** – Manage order items within orders (`/orders/:orderId/items`, `/orders/:orderId/items/:itemId`).
 - **Direct SQL Server Access** – Direct database connections via TypeORM to SQL Server without OJP proxying.
-- **Multi-DataSource Architecture** – Distinct catalog (`catalog_db`) and checkout (`checkout_db`) databases mirroring the Spring Boot shopservice domain segregation.
+- **Multi-DataSource Architecture** – Distinct catalog (`nodejs_catalog_db`) and checkout (`nodejs_checkout_db`) databases mirroring the Spring Boot shopservice domain segregation with prefixed table names (`nodejs_*`) preventing naming conflicts.
 - **Identical Integration Test Suite** – Equivalent integration tests covering repositories and controllers matching all 7 Spring Boot test classes.
 
 ---
@@ -31,14 +31,14 @@ A Node.js implementation of the ShopService reference application modeled after 
 
 ## Multi-DataSource Architecture
 
-Mirrors the Spring Boot domain split:
-- **Catalog Domain (`catalog_db`)**:
-  - `User` entity
-  - `Product` entity
-  - `Review` entity (relates to `User` and `Product`)
-- **Checkout Domain (`checkout_db`)**:
-  - `Order` entity (relates to `User` by ID)
-  - `OrderItem` entity (relates to `Order` and references `Product` by ID)
+Mirrors the Spring Boot domain split with prefixed table names to avoid any conflict:
+- **Catalog Domain (`nodejs_catalog_db`)**:
+  - `User` entity (`nodejs_users` table)
+  - `Product` entity (`nodejs_products` table)
+  - `Review` entity (`nodejs_reviews` table, relates to `User` and `Product`)
+- **Checkout Domain (`nodejs_checkout_db`)**:
+  - `Order` entity (`nodejs_orders` table, relates to `User` by ID)
+  - `OrderItem` entity (`nodejs_order_items` table, relates to `Order` and references `Product` by ID)
 
 ---
 
@@ -86,8 +86,8 @@ Environment variables can configure the SQL Server connection:
 | `DB_PORT` | SQL Server port | `1433` |
 | `DB_USER` | SQL Server user | `sa` |
 | `DB_PASSWORD` | SQL Server password | `yourStrong(!)Password` |
-| `CATALOG_DB` | Catalog database name | `catalog_db` |
-| `CHECKOUT_DB` | Checkout database name | `checkout_db` |
+| `CATALOG_DB` | Catalog database name | `nodejs_catalog_db` |
+| `CHECKOUT_DB` | Checkout database name | `nodejs_checkout_db` |
 | `PORT` | HTTP server port | `8080` |
 
 ---

@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 import { bigintTransformer } from '../transformers';
 
-@Entity('users')
+@Entity('nodejs_users')
 export class User {
   @PrimaryGeneratedColumn({ type: 'bigint' })
   id: number;
