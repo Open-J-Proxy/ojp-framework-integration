@@ -9,6 +9,9 @@ on:
   repository_dispatch:
     types: [ojp-updated]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
