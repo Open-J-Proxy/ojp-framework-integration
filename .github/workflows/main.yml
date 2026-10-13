@@ -238,6 +238,11 @@ jobs:
         run: mvn clean verify
         working-directory: spring-boot/shopservice
 
+      - name: "[Partial cluster] Run Node.js Integration tests (shopservice)"
+        continue-on-error: true
+        run: npm test
+        working-directory: nodejs/shopservice
+
       - name: Show ojp-server logs (partial-cluster run)
         if: always()
         run: |
