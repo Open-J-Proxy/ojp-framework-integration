@@ -1,0 +1,199 @@
+name: Non-Java Frameworks Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [ main ]
+  repository_dispatch:
+    types: [ojp-updated]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Checkout OJP repository
+        uses: actions/checkout@v5
+        with:
+          repository: Open-JDBC-Proxy/ojp
+          fetch-depth: 0
+          ref: main
+          path: ojp
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      # Check Docker availability for TestContainers-based tests
+      - name: Check Docker environment
+        run: |
+          echo "=== Docker Version ==="
+          docker --version || echo "Docker command not found"
+          echo ""
+          echo "=== Docker Info ==="
+          docker info || echo "Docker info failed"
+          echo ""
+          echo "=== Docker Compose Version ==="
+          docker-compose --version || echo "Docker Compose not found"
+
+      # Clean Maven repository to avoid stale ojp artifacts
+      - name: Clean ojp artifacts from local Maven repository
+        run: |
+          rm -rf ~/.m2/repository/org/openjproxy/ojp-jdbc-driver
+          rm -rf ~/.m2/repository/org/openjproxy/spring-boot-starter-ojp
+
+      # Build and install ojp-jdbc-driver with integration test SNAPSHOT version
+      # This version will be used by all frameworks (Spring Boot, Quarkus, Micronaut)
+      - name: Set ojp-jdbc-driver version to SNAPSHOT
+        run: |
+          mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl ojp-jdbc-driver -DgenerateBackupPoms=false
+        working-directory: ojp
+
+      - name: Build and install ojp-jdbc-driver with SNAPSHOT version
+        run: mvn clean install -U -pl ojp-jdbc-driver -am -DskipTests
+        working-directory: ojp
+
+      # Build and install spring-boot-starter-ojp with integration test SNAPSHOT version
+      - name: Set spring-boot-starter-ojp version to SNAPSHOT
+        run: |
+          mvn versions:set -DnewVersion=0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION -pl spring-boot-starter-ojp -DgenerateBackupPoms=false
+          python3 -c "
+          import re, sys
+          f = 'spring-boot-starter-ojp/pom.xml'
+          c = open(f).read()
+          updated, matches = re.subn(r'(<artifactId>ojp-jdbc-driver<\/artifactId>\s*<version>)[^<]*(<\/version>)', r'\g<1>0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION\2', c)
+          if matches == 0:
+              print('ERROR: ojp-jdbc-driver version not updated in spring-boot-starter-ojp/pom.xml', file=sys.stderr)
+              sys.exit(1)
+          open(f, 'w').write(updated)
+          print('Successfully updated ojp-jdbc-driver dependency version in spring-boot-starter-ojp/pom.xml')
+          "
+        working-directory: ojp
+
+      - name: Build and install spring-boot-starter-ojp with SNAPSHOT version
+        run: mvn clean install -U -pl spring-boot-starter-ojp -am -DskipTests
+        working-directory: ojp
+
+      # Install remaining ojp modules
+      - name: Install remaining ojp modules
+        run: mvn clean install -U -DskipTests
+        working-directory: ojp
+
+      # Download JDBC drivers required by OJP server
+      - name: Download JDBC drivers
+        run: bash ojp-server/download-drivers.sh
+        working-directory: ojp
+
+      - name: Clear previous OJP server logs
+        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+        working-directory: ojp
+
+      - name: Run 3 OJP servers (ports 1059, 1060, 1061)
+        run: |
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9465 -Dotel.exporter.prometheus.port=9465 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          echo $! > /tmp/ojp-server-2.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9466 -Dotel.exporter.prometheus.port=9466 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          echo $! > /tmp/ojp-server-3.pid
+        working-directory: ojp
+
+      - name: Wait for OJP servers to start
+        run: sleep 15
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: nodejs/shopservice/package-lock.json
+
+      - name: Install dependencies and build Node.js (shopservice)
+        run: |
+          npm ci
+          npm run build
+        working-directory: nodejs/shopservice
+
+      - name: Run Node.js TypeORM Integration tests (shopservice)
+        run: npm test
+        working-directory: nodejs/shopservice
+
+      - name: Show ojp-server logs
+        if: always()  # ensures it runs even if previous steps fail
+        run: |
+          echo "=== OJP Server 1 (port 1059) ==="
+          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
+          echo ""
+          echo "=== OJP Server 2 (port 1060) ==="
+          cat /tmp/ojp-server-2.log || echo "/tmp/ojp-server-2.log not found"
+          echo ""
+          echo "=== OJP Server 3 (port 1061) ==="
+          cat /tmp/ojp-server-3.log || echo "/tmp/ojp-server-3.log not found"
+
+      # ── Partial-cluster resilience run ─────────────────────────────────────
+      # Goal: assess how each framework behaves when not all OJP servers are
+      # healthy at startup.  Kill every server, bring up only port 1059, rerun
+      # all integration tests, then tear down the single remaining server.
+
+      - name: Kill all OJP servers
+        run: |
+          for PID_FILE in /tmp/ojp-server-1.pid /tmp/ojp-server-2.pid /tmp/ojp-server-3.pid; do
+            if [ -f "$PID_FILE" ]; then
+              PID=$(cat "$PID_FILE")
+              kill "$PID" 2>/dev/null || true
+              rm -f "$PID_FILE"
+            fi
+          done
+          sleep 3
+
+      - name: Clear previous OJP server logs (partial-cluster run)
+        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+
+      - name: Set up JDK 25 for partial-cluster OJP server
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Run single OJP server (port 1059 only)
+        run: |
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9464 -Dotel.exporter.prometheus.port=9464 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
+        working-directory: ojp
+
+      - name: Wait for single OJP server to start
+        run: sleep 15
+
+      - name: "[Partial cluster] Run Node.js TypeORM Integration tests (shopservice)"
+        continue-on-error: true
+        run: npm test
+        working-directory: nodejs/shopservice
+
+      - name: Show ojp-server logs (partial-cluster run)
+        if: always()
+        run: |
+          echo "=== OJP Server 1 (port 1059) ==="
+          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
+
+      - name: Kill remaining OJP server (port 1059)
+        if: always()
+        run: |
+          if [ -f /tmp/ojp-server-1.pid ]; then
+            PID=$(cat /tmp/ojp-server-1.pid)
+            kill "$PID" 2>/dev/null || true
+            rm -f /tmp/ojp-server-1.pid
+          fi
