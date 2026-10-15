@@ -1,0 +1,91 @@
+name: C++ ODBC ShopService Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [ main ]
+  repository_dispatch:
+    types: [ojp-updated]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DB_HOST: localhost
+      DB_PORT: '1433'
+      DB_USER: sa
+      ODBC_DRIVER: ODBC Driver 18 for SQL Server
+      CATALOG_DB: cpp_catalog_db
+      CHECKOUT_DB: cpp_checkout_db
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      # Check Docker availability for the SQL Server container
+      - name: Check Docker environment
+        run: |
+          echo "=== Docker Version ==="
+          docker --version || echo "Docker command not found"
+          echo ""
+          echo "=== Docker Info ==="
+          docker info || echo "Docker info failed"
+
+      # This first version connects directly to SQL Server through ODBC (no OJP).
+      - name: Start SQL Server 2022
+        run: |
+          DB_PASSWORD="Cpp_$(openssl rand -hex 16)_Aa1!"
+          echo "::add-mask::$DB_PASSWORD"
+          echo "DB_PASSWORD=$DB_PASSWORD" >> "$GITHUB_ENV"
+          docker run -d --name cpp-shopservice-mssql \
+            -e ACCEPT_EULA=Y \
+            -e "MSSQL_SA_PASSWORD=$DB_PASSWORD" \
+            -p 1433:1433 \
+            mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Install C++ build dependencies and Microsoft ODBC Driver 18 for SQL Server
+        run: |
+          sudo apt-get update
+          if ! apt-cache policy msodbcsql18 | grep -q 'Candidate: [0-9]'; then
+            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
+            curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+            sudo apt-get update
+          fi
+          sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            unixodbc-dev msodbcsql18 libgtest-dev nlohmann-json3-dev libcpp-httplib-dev
+          odbcinst -q -d
+
+      - name: Build C++ ODBC shopservice
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel
+        working-directory: cpp/shopservice
+
+      - name: Wait for SQL Server to accept connections
+        run: |
+          for i in $(seq 1 60); do
+            if docker exec cpp-shopservice-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$DB_PASSWORD" -Q "SELECT 1" > /dev/null 2>&1; then
+              echo "SQL Server is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SQL Server did not become ready in time"
+          exit 1
+
+      - name: Run C++ ODBC Integration tests (shopservice)
+        run: ctest --test-dir build --output-on-failure
+        working-directory: cpp/shopservice
+
+      - name: Show SQL Server logs
+        if: always()
+        run: docker logs cpp-shopservice-mssql || echo "SQL Server container not found"
+
+      - name: Stop SQL Server
+        if: always()
+        run: docker rm -f cpp-shopservice-mssql || true
