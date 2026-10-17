@@ -129,10 +129,10 @@ void saveUser(Connection& conn, User& user) {
                       Param::optionalString(user.createdAt), Param::int64(*user.id)});
         return;
     }
-    auto rows = conn.query(
-        "INSERT INTO dbo.cpp_users (username, email, created_at) OUTPUT INSERTED.id VALUES (?, ?, ?)",
+    conn.execute(
+        "INSERT INTO dbo.cpp_users (username, email, created_at) VALUES (?, ?, ?)",
         {Param::string(user.username), Param::string(user.email), Param::optionalString(user.createdAt)});
-    user.id = asInt64(rows.at(0).at(0));
+    user.id = scalar(conn, "SELECT CAST(@@IDENTITY AS BIGINT)");
 }
 
 void saveProduct(Connection& conn, Product& product) {
@@ -141,9 +141,9 @@ void saveProduct(Connection& conn, Product& product) {
                      {Param::string(product.name), priceParam(product.price), Param::int64(*product.id)});
         return;
     }
-    auto rows = conn.query("INSERT INTO dbo.cpp_products (name, price) OUTPUT INSERTED.id VALUES (?, ?)",
-                           {Param::string(product.name), priceParam(product.price)});
-    product.id = asInt64(rows.at(0).at(0));
+    conn.execute("INSERT INTO dbo.cpp_products (name, price) VALUES (?, ?)",
+                 {Param::string(product.name), priceParam(product.price)});
+    product.id = scalar(conn, "SELECT CAST(@@IDENTITY AS BIGINT)");
 }
 
 void saveReview(Connection& conn, Review& review) {
@@ -157,12 +157,12 @@ void saveReview(Connection& conn, Review& review) {
              Param::optionalString(review.comment), Param::int64(*review.id)});
         return;
     }
-    auto rows = conn.query(
-        "INSERT INTO dbo.cpp_reviews (user_id, product_id, rating, comment) OUTPUT INSERTED.id "
+    conn.execute(
+        "INSERT INTO dbo.cpp_reviews (user_id, product_id, rating, comment) "
         "VALUES (?, ?, ?, ?)",
         {Param::int64(*review.user.id), Param::int64(*review.product.id), Param::int32(review.rating),
          Param::optionalString(review.comment)});
-    review.id = asInt64(rows.at(0).at(0));
+    review.id = scalar(conn, "SELECT CAST(@@IDENTITY AS BIGINT)");
 }
 
 void saveOrderItem(Connection& conn, OrderItem& item) {
@@ -175,10 +175,10 @@ void saveOrderItem(Connection& conn, OrderItem& item) {
                       Param::int64(*item.id)});
         return;
     }
-    auto rows = conn.query(
-        "INSERT INTO dbo.cpp_order_items (order_id, product_id, quantity) OUTPUT INSERTED.id VALUES (?, ?, ?)",
+    conn.execute(
+        "INSERT INTO dbo.cpp_order_items (order_id, product_id, quantity) VALUES (?, ?, ?)",
         {Param::int64(*item.orderId), Param::int64(item.productId), Param::int32(item.quantity)});
-    item.id = asInt64(rows.at(0).at(0));
+    item.id = scalar(conn, "SELECT CAST(@@IDENTITY AS BIGINT)");
 }
 
 void saveOrder(Connection& conn, Order& order) {
@@ -189,13 +189,14 @@ void saveOrder(Connection& conn, Order& order) {
     } else {
         // When no date is supplied the column default (SYSDATETIME) applies,
         // like the "orderDate = LocalDateTime.now()" initialiser of the JPA entity.
-        auto rows = conn.query(
+        conn.execute(
             "INSERT INTO dbo.cpp_orders (user_id, order_date) "
-            "OUTPUT INSERTED.id, CONVERT(VARCHAR(33), INSERTED.order_date, 126) "
             "VALUES (?, COALESCE(?, SYSDATETIME()))",
             {Param::int64(order.userId), Param::optionalString(order.orderDate)});
-        order.id = asInt64(rows.at(0).at(0));
-        order.orderDate = asDateTime(rows.at(0).at(1));
+        order.id = scalar(conn, "SELECT CAST(@@IDENTITY AS BIGINT)");
+        auto rows = conn.query("SELECT CONVERT(VARCHAR(33), order_date, 126) FROM dbo.cpp_orders WHERE id = ?",
+                               {Param::int64(*order.id)});
+        order.orderDate = asDateTime(rows.at(0).at(0));
     }
 
     // Cascade to items; items no longer referenced are removed (orphanRemoval).
@@ -247,8 +248,8 @@ void attachItems(Connection& conn, std::vector<Order>& orders) {
 // ── UserRepository ──────────────────────────────────────────────────────────
 
 User UserRepository::save(User user) {
-    auto conn = ds_.acquire();
-    saveUser(*conn, user);
+    // A transaction pins the backend connection through INSERT and identity lookup.
+    ds_.inTransaction([&](Connection& conn) { saveUser(conn, user); });
     return user;
 }
 
@@ -298,8 +299,7 @@ void UserRepository::deleteAll() {
 // ── ProductRepository ───────────────────────────────────────────────────────
 
 Product ProductRepository::save(Product product) {
-    auto conn = ds_.acquire();
-    saveProduct(*conn, product);
+    ds_.inTransaction([&](Connection& conn) { saveProduct(conn, product); });
     return product;
 }
 
@@ -351,8 +351,7 @@ void ProductRepository::deleteAll() {
 // ── ReviewRepository ────────────────────────────────────────────────────────
 
 Review ReviewRepository::save(Review review) {
-    auto conn = ds_.acquire();
-    saveReview(*conn, review);
+    ds_.inTransaction([&](Connection& conn) { saveReview(conn, review); });
     return review;
 }
 
@@ -486,8 +485,7 @@ void OrderRepository::deleteAll() {
 // ── OrderItemRepository ─────────────────────────────────────────────────────
 
 OrderItem OrderItemRepository::save(OrderItem item) {
-    auto conn = ds_.acquire();
-    saveOrderItem(*conn, item);
+    ds_.inTransaction([&](Connection& conn) { saveOrderItem(conn, item); });
     return item;
 }
 

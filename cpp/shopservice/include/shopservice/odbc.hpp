@@ -85,7 +85,7 @@ private:
 
 class Connection {
 public:
-    Connection(const Environment& env, const std::string& connectionString);
+    Connection(const Environment& env, const std::string& connectionString, bool autoCommit = true);
     ~Connection();
     Connection(const Connection&) = delete;
     Connection& operator=(const Connection&) = delete;
@@ -94,10 +94,9 @@ public:
     std::vector<Row> query(const std::string& sql, std::vector<Param> params = {});
     // Executes a statement and returns the affected row count.
     std::int64_t execute(const std::string& sql, std::vector<Param> params = {});
-    // Executes a (possibly multi-statement) batch without parameters.
+    // Executes a DDL command without parameters or result sets.
     void executeBatch(const std::string& sql);
 
-    void setAutoCommit(bool enabled);
     bool autoCommit() const { return autoCommit_; }
     void commit();
     void rollback();
@@ -140,29 +139,25 @@ public:
 
     DataSource(std::shared_ptr<Environment> env, std::string connectionString);
 
-    Lease acquire();
+    Lease acquire(bool autoCommit = true);
 
     // Runs fn inside a transaction on a fresh connection; commits on success,
     // rolls back on any exception.
     template <typename Fn>
     auto inTransaction(Fn&& fn) -> decltype(fn(std::declval<Connection&>())) {
-        Lease lease = acquire();
-        lease->setAutoCommit(false);
+        Lease lease = acquire(false);
         try {
             if constexpr (std::is_void_v<decltype(fn(*lease))>) {
                 fn(*lease);
                 lease->commit();
-                lease->setAutoCommit(true);
             } else {
                 auto result = fn(*lease);
                 lease->commit();
-                lease->setAutoCommit(true);
                 return result;
             }
         } catch (...) {
             try {
                 lease->rollback();
-                lease->setAutoCommit(true);
             } catch (...) {
                 lease->markBroken();
             }

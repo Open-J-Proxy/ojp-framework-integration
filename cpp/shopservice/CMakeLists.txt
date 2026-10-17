@@ -39,6 +39,10 @@ if(SHOPSERVICE_BUILD_TESTS)
   enable_testing()
   find_package(GTest REQUIRED)
 
+  add_executable(shopservice_config_test test/DatabaseConfigTest.cpp)
+  target_link_libraries(shopservice_config_test PRIVATE shopservice_core GTest::gtest_main)
+  add_test(NAME shopservice_config_test COMMAND shopservice_config_test)
+
   add_executable(shopservice_it
     test/test_main.cpp
     test/CatalogRepositoryIT.cpp
