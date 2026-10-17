@@ -4,11 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pyodbc
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from .config import DatabaseConfig, is_valid_database_name
 from .models import CatalogBase, CheckoutBase
+
+_SQL_AUTOCOMMIT_OFF = 0
 
 
 @dataclass
@@ -23,13 +27,34 @@ class Databases:
         self.checkout_engine.dispose()
 
 
-def _engine(config: DatabaseConfig, database: str, **kwargs) -> Engine:
-    return create_engine(config.url(database), pool_pre_ping=True, **kwargs)
+def _engine(config: DatabaseConfig, database: str, *, autocommit: bool = False) -> Engine:
+    # The OJP server owns the database connection pools, so the client must not pool: NullPool opens a
+    # connection per unit of work and really closes it afterwards.
+    #
+    # The OJP ODBC driver exports SQLDriverConnectW, so unixODBC treats it as a Unicode driver and only
+    # forwards post-connect SQLSetConnectAttr calls to SQLSetConnectAttrW, which the driver does not
+    # implement. pyodbc is therefore told the connection is in autocommit mode (so it never toggles the
+    # attribute after connecting), while manual-commit mode is requested through attrs_before, which the
+    # Driver Manager applies during connect. commit()/rollback() still reach the driver's SQLEndTran.
+    attrs_before = {} if autocommit else {pyodbc.SQL_ATTR_AUTOCOMMIT: _SQL_AUTOCOMMIT_OFF}
+    engine = create_engine(
+        config.url(database),
+        poolclass=NullPool,
+        connect_args={"autocommit": True, "attrs_before": attrs_before},
+        use_scope_identity=False,
+    )
+    # The OJP server runs INSERT/UPDATE/DELETE as JDBC updates, which reject result sets, so OUTPUT/RETURNING
+    # is disabled and generated IDs are fetched with a follow-up SELECT.
+    engine.dialect.insert_returning = False
+    engine.dialect.update_returning = False
+    engine.dialect.delete_returning = False
+    engine.dialect.use_insertmanyvalues = False
+    return engine
 
 
 def ensure_databases_exist(config: DatabaseConfig) -> None:
     """Create the catalog and checkout databases if they are missing."""
-    master = _engine(config, "master", isolation_level="AUTOCOMMIT")
+    master = _engine(config, "master", autocommit=True)
     try:
         with master.connect() as conn:
             for name in (config.catalog_database, config.checkout_database):
@@ -45,6 +70,8 @@ def ensure_databases_exist(config: DatabaseConfig) -> None:
 
 def init_databases(config: DatabaseConfig) -> Databases:
     """Create missing databases and tables and return engines/session factories for both datasources."""
+    # Disable ODBC Driver Manager pooling too; this must happen before the first ODBC connection is opened.
+    pyodbc.pooling = False
     ensure_databases_exist(config)
     catalog_engine = _engine(config, config.catalog_database)
     checkout_engine = _engine(config, config.checkout_database)

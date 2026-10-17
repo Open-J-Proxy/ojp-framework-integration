@@ -1,8 +1,12 @@
 # Python SQLAlchemy ShopService
 
-A Python implementation of the ShopService reference application, modelled on `spring-boot/shopservice`. It exposes the same REST API, domain model, catalog/checkout database split and integration test suite. Database access goes through **SQLAlchemy 2** with the `mssql+pyodbc` dialect, which wraps the **native Microsoft ODBC Driver 18 for SQL Server**.
+A Python implementation of the ShopService reference application, modelled on `spring-boot/shopservice`. It exposes the same REST API, domain model, catalog/checkout database split and integration test suite. Database access goes through **SQLAlchemy 2** with the `mssql+pyodbc` dialect. All database operations are routed through **OJP**:
 
-> This first version connects **directly** to SQL Server. OJP is not used yet.
+```
+SQLAlchemy (mssql+pyodbc) → pyodbc → unixODBC → OJP ODBC driver ─gRPC→ OJP server(s) ─JDBC (mssql-jdbc)→ SQL Server
+```
+
+> **Driver prerequisites.** pyodbc needs two things the current OJP ODBC driver (`ojp-client-cpp-odbc`) does not provide yet: an exported `SQLNumParams`, and support for the generic C types `SQL_C_LONG`/`SQL_C_SHORT`/`SQL_C_TINYINT` (pyodbc binds Python `int` as `SQL_C_LONG`). Until the driver adds them, every parameterized statement fails with `IM001 ... (SQLNumParams)`.
 
 ---
 
@@ -13,7 +17,7 @@ A Python implementation of the ShopService reference application, modelled on `s
 - **Product reviews**: users review products with a rating and comment (`/reviews`, `/reviews/{id}`). The list endpoint can be filtered with `?userId=` or `?productId=`.
 - **Order management**: orders with cascaded order items (`/orders`, `/orders/{id}`). Replacing `orderItems` on update removes the orphaned items, like JPA `orphanRemoval`.
 - **Order item management**: items within an order (`/orders/{orderId}/items`, `/orders/{orderId}/items/{itemId}`).
-- **Two datasources**: `py_catalog_db` and `py_checkout_db`, each with its own SQLAlchemy engine, connection pool and declarative base (the equivalent of `CatalogJpaConfig`/`CheckoutJpaConfig`). Every table name has the `py_` prefix so it cannot clash with the other framework modules.
+- **Two datasources**: `py_catalog_db` and `py_checkout_db`, each with its own SQLAlchemy engine and declarative base (the equivalent of `CatalogJpaConfig`/`CheckoutJpaConfig`). Every table name has the `py_` prefix so it cannot clash with the other framework modules.
 
 ---
 
@@ -23,18 +27,20 @@ A Python implementation of the ShopService reference application, modelled on `s
 |---|---|
 | Language | Python ≥ 3.10 |
 | ORM | SQLAlchemy 2 (`mssql+pyodbc` dialect) |
-| Database driver | pyodbc + unixODBC + Microsoft ODBC Driver 18 for SQL Server |
+| Database driver | pyodbc + unixODBC + OJP ODBC driver (`ojp-client-cpp-odbc`) |
+| Proxy | OJP server(s) with `mssql-jdbc` |
 | HTTP | FastAPI, served by uvicorn |
 | Tests | pytest + FastAPI `TestClient` |
 | Database | SQL Server 2022 (`mcr.microsoft.com/mssql/server:2022-latest`) |
 
-The ODBC driver has to be installed on the system. On Ubuntu:
+The OJP ODBC driver has to be built from the [OJP repository](https://github.com/Open-JDBC-Proxy/ojp) and registered with unixODBC under the name `OJP`. The OJP server needs `mssql-jdbc` in its `ojp-libs` directory. `.github/workflows/python-shopservice.yml` shows the full build, registration and server start-up.
 
-```bash
-sudo ACCEPT_EULA=Y apt-get install -y unixodbc msodbcsql18
-```
+How OJP constrains the client:
 
-`msodbcsql18` comes from the [Microsoft package repository](https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server).
+- **No client-side pooling.** OJP owns the database connection pools, so the engines use `NullPool` and unixODBC pooling is turned off (`pyodbc.pooling = False`).
+- **Transactions.** unixODBC treats the OJP driver as a Unicode driver, so it only forwards connection attributes set after connect to `SQLSetConnectAttrW`, which the driver doesn't implement. Manual-commit mode is therefore requested through `attrs_before` during connect, and SQLAlchemy's `commit()`/`rollback()` still reach the driver's `SQLEndTran`.
+- **No `OUTPUT`/RETURNING.** The OJP server runs DML as JDBC updates, so generated IDs are fetched with a follow-up `SELECT` instead of `INSERT ... OUTPUT`.
+- **Text results.** The driver reports result columns as character data. `Numeric` values are converted back to `Decimal` by SQLAlchemy, and `DATETIME2` values are parsed by a small `Timestamp` type.
 
 ---
 
@@ -77,15 +83,16 @@ Configuration is read from environment variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `DB_HOST` | SQL Server host | `localhost` |
-| `DB_PORT` | SQL Server port | `1433` |
+| `OJP_SERVER` | OJP server endpoint(s), `host:port` or a comma-separated list | `localhost:1059` |
+| `DB_HOST` | SQL Server host, as reached by the OJP server | `localhost` |
+| `DB_PORT` | SQL Server port, as reached by the OJP server | `1433` |
 | `DB_USER` | SQL Server login | `sa` |
 | `DB_PASSWORD` | SQL Server password | *(empty)* |
-| `ODBC_DRIVER` | ODBC driver name, as registered in `odbcinst.ini` | `ODBC Driver 18 for SQL Server` |
+| `ODBC_DRIVER` | ODBC driver name, as registered in `odbcinst.ini` | `OJP` |
 | `CATALOG_DB` | Catalog database name | `py_catalog_db` |
 | `CHECKOUT_DB` | Checkout database name | `py_checkout_db` |
-| `DB_ENCRYPT` | ODBC `Encrypt` attribute | `false` |
-| `DB_TRUST_SERVER_CERTIFICATE` | ODBC `TrustServerCertificate` attribute | `true` |
+| `DB_ENCRYPT` | `encrypt` property of the backend JDBC URL | `false` |
+| `DB_TRUST_SERVER_CERTIFICATE` | `trustServerCertificate` property of the backend JDBC URL | `true` |
 | `BIND_HOST` | HTTP bind address (application only) | `0.0.0.0` |
 | `PORT` | HTTP port (application only) | `8080` |
 
@@ -100,7 +107,7 @@ pip install -e ".[test]"
 DB_PASSWORD='<sa password>' shopservice
 ```
 
-To start a local SQL Server:
+This needs a running OJP server (see above). To start a local SQL Server:
 
 ```bash
 docker run -d --name mssql -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=<sa password>' \
@@ -111,13 +118,13 @@ docker run -d --name mssql -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=<sa password>'
 
 ## Running the integration tests
 
-The tests need a reachable SQL Server, configured with the environment variables above. The test session creates the databases and tables and runs the API in-process with FastAPI's `TestClient` (the equivalent of MockMvc):
+The tests need a reachable OJP server and SQL Server, configured with the environment variables above. The test session creates the databases and tables and runs the API in-process with FastAPI's `TestClient` (the equivalent of MockMvc):
 
 ```bash
 DB_PASSWORD='<sa password>' python -m pytest -v
 ```
 
-The `.github/workflows/python-shopservice.yml` workflow runs the same steps in CI. It starts SQL Server 2022 in Docker with a randomly generated password.
+The `.github/workflows/python-shopservice.yml` workflow runs the same steps in CI. It starts SQL Server 2022 in Docker with a randomly generated password, builds the OJP server and ODBC driver from `Open-JDBC-Proxy/ojp` `main`, and starts three OJP servers (ports 1059, 1060 and 1061), like the Java workflow. The tests then connect to all three through `OJP_SERVER`.
 
 ### Integration test suites
 

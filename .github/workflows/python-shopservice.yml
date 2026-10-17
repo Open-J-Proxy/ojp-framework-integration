@@ -15,17 +15,33 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
+      # SQL Server as seen by the OJP servers (they open the real JDBC connections).
       DB_HOST: localhost
       DB_PORT: '1433'
       DB_USER: sa
-      ODBC_DRIVER: ODBC Driver 18 for SQL Server
+      # The application only talks to the OJP ODBC driver, which forwards every call to the OJP servers.
+      ODBC_DRIVER: OJP
+      OJP_SERVER: localhost:1059,localhost:1060,localhost:1061
       CATALOG_DB: py_catalog_db
       CHECKOUT_DB: py_checkout_db
     steps:
       - name: Checkout shopservice code
         uses: actions/checkout@v5
+
+      - name: Checkout OJP repository
+        uses: actions/checkout@v5
+        with:
+          repository: Open-JDBC-Proxy/ojp
+          ref: main
+          path: ojp
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
 
       # Check Docker availability for the SQL Server container
       - name: Check Docker environment
@@ -36,7 +52,6 @@ jobs:
           echo "=== Docker Info ==="
           docker info || echo "Docker info failed"
 
-      # This first version connects directly to SQL Server through SQLAlchemy + pyodbc (no OJP).
       - name: Start SQL Server 2022
         run: |
           DB_PASSWORD="Py_$(openssl rand -hex 16)_Aa1!"
@@ -48,16 +63,72 @@ jobs:
             -p 1433:1433 \
             mcr.microsoft.com/mssql/server:2022-latest
 
-      - name: Install Microsoft ODBC Driver 18 for SQL Server
+      - name: Build OJP server
+        run: mvn clean install -U -pl ojp-server -am -DskipTests -Dgpg.skip=true
+        working-directory: ojp
+
+      # Download JDBC drivers required by OJP server (SQL Server's mssql-jdbc is not part of download-drivers.sh)
+      - name: Download JDBC drivers
+        run: |
+          bash ojp-server/download-drivers.sh
+          mvn -q dependency:copy -Dartifact=com.microsoft.sqlserver:mssql-jdbc:12.8.2.jre11 -DoutputDirectory=ojp-libs -Dmdep.stripVersion=false
+          ls -l ojp-libs
+        working-directory: ojp
+
+      - name: Install OJP ODBC driver build dependencies
         run: |
           sudo apt-get update
-          if ! apt-cache policy msodbcsql18 | grep -q 'Candidate: [0-9]'; then
-            curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor --yes -o /usr/share/keyrings/microsoft-prod.gpg
-            curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list
-            sudo apt-get update
-          fi
-          sudo ACCEPT_EULA=Y DEBIAN_FRONTEND=noninteractive apt-get install -y unixodbc msodbcsql18
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            cmake g++ ninja-build pkg-config \
+            golang-github-gogo-googleapis-dev libgrpc++-dev libprotobuf-dev \
+            protobuf-compiler protobuf-compiler-grpc \
+            unixodbc unixodbc-dev odbcinst
+
+      - name: Build and register OJP ODBC driver
+        run: |
+          cmake -S ojp-client-cpp-odbc -B ojp-client-cpp-odbc/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DGOOGLEAPIS_PROTO_DIR=/usr/share/gocode/src/github.com/gogo/googleapis
+          cmake --build ojp-client-cpp-odbc/build
+          sudo cmake --install ojp-client-cpp-odbc/build --prefix /usr/local
+          DRIVER_LIB=$(find /usr/local/lib* -name 'libojp_odbc.so' | head -1)
+          test -n "$DRIVER_LIB"
+          printf '[OJP]\nDescription=Open J Proxy ODBC driver\nDriver=%s\n' "$DRIVER_LIB" > /tmp/ojp-odbc-driver.ini
+          sudo /usr/bin/odbcinst -i -d -f /tmp/ojp-odbc-driver.ini
           odbcinst -q -d
+        working-directory: ojp
+
+      - name: Clear previous OJP server logs
+        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+
+      - name: Run 3 OJP servers (ports 1059, 1060, 1061)
+        run: |
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9159 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9160 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          echo $! > /tmp/ojp-server-2.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9161 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          echo $! > /tmp/ojp-server-3.pid
+        working-directory: ojp
+
+      - name: Wait for OJP servers to start
+        run: |
+          for i in 1 2 3; do
+            for attempt in $(seq 1 60); do
+              if grep -q "OJP gRPC Server started" "/tmp/ojp-server-$i.log"; then
+                echo "OJP server $i is ready"
+                break
+              fi
+              if [ "$attempt" -eq 60 ]; then
+                echo "OJP server $i did not start in time"
+                cat "/tmp/ojp-server-$i.log"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -82,14 +153,28 @@ jobs:
           echo "SQL Server did not become ready in time"
           exit 1
 
-      - name: Run Python Integration tests (shopservice)
+      - name: Run OJP Python Integration tests (shopservice)
         run: python -m pytest -v
         working-directory: python/shopservice
+
+      - name: Show OJP server logs
+        if: always()
+        run: |
+          for i in 1 2 3; do
+            echo "=== OJP server $i ==="
+            cat "/tmp/ojp-server-$i.log" || echo "No log for OJP server $i"
+          done
 
       - name: Show SQL Server logs
         if: always()
         run: docker logs python-shopservice-mssql || echo "SQL Server container not found"
 
-      - name: Stop SQL Server
+      - name: Stop OJP servers and SQL Server
         if: always()
-        run: docker rm -f python-shopservice-mssql || true
+        run: |
+          for i in 1 2 3; do
+            if [ -f "/tmp/ojp-server-$i.pid" ]; then
+              kill "$(cat "/tmp/ojp-server-$i.pid")" 2>/dev/null || true
+            fi
+          done
+          docker rm -f python-shopservice-mssql || true

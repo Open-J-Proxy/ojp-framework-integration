@@ -9,9 +9,24 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import BigInteger, ForeignKey, Identity, Integer, Numeric, String, UnicodeText, func
+from sqlalchemy import BigInteger, ForeignKey, Identity, Integer, Numeric, String, TypeDecorator, UnicodeText, func
 from sqlalchemy.dialects.mssql import DATETIME2
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Timestamp(TypeDecorator):
+    """``DATETIME2(6)`` column that also accepts timestamps returned as text.
+
+    The OJP ODBC driver reports result columns as character data, so values arrive as ISO strings.
+    """
+
+    impl = DATETIME2(precision=6)
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        if isinstance(value, str):
+            return datetime.fromisoformat(value)
+        return value
 
 
 class CatalogBase(DeclarativeBase):
@@ -31,7 +46,7 @@ class User(CatalogBase):
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DATETIME2(precision=6), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(Timestamp(), nullable=True)
 
 
 class Product(CatalogBase):
@@ -64,7 +79,7 @@ class Order(CheckoutBase):
     id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     order_date: Mapped[Optional[datetime]] = mapped_column(
-        DATETIME2(precision=6), nullable=True, default=datetime.now, server_default=func.sysdatetime()
+        Timestamp(), nullable=True, default=datetime.now, server_default=func.sysdatetime()
     )
 
     order_items: Mapped[list["OrderItem"]] = relationship(
