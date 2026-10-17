@@ -1,8 +1,10 @@
 # C++ ODBC ShopService
 
-A C++17 implementation of the ShopService reference application, modelled on `spring-boot/shopservice` and the Node.js port. It exposes the same REST API, domain model, catalog/checkout database split and integration test suite. Database access goes through the **standard ODBC 3.x C API** (unixODBC driver manager plus the Microsoft ODBC Driver 18 for SQL Server) against **Microsoft SQL Server**.
+A C++17 implementation of the ShopService reference application, modelled on `spring-boot/shopservice` and the Node.js port. It exposes the same REST API, domain model, catalog/checkout database split and integration test suite. All database access goes through the **standard ODBC 3.x C API** and the **OJP ODBC driver** against **Microsoft SQL Server**.
 
-> This first version connects **directly** to SQL Server. OJP is not used yet.
+```text
+C++ → unixODBC → OJP ODBC driver ─gRPC→ OJP server(s) ─JDBC (mssql-jdbc)→ SQL Server
+```
 
 ---
 
@@ -23,7 +25,8 @@ A C++17 implementation of the ShopService reference application, modelled on `sp
 | Component | Library |
 |---|---|
 | Language | C++17 (CMake ≥ 3.16) |
-| Database access | ODBC 3.x via unixODBC + Microsoft ODBC Driver 18 for SQL Server |
+| Database access | ODBC 3.x via unixODBC + OJP ODBC driver (`ojp-client-cpp-odbc`) |
+| Proxy | OJP server(s) with `mssql-jdbc` |
 | HTTP server/client | [cpp-httplib](https://github.com/yhirose/cpp-httplib) |
 | JSON | [nlohmann/json](https://github.com/nlohmann/json) |
 | Tests | GoogleTest |
@@ -32,10 +35,24 @@ A C++17 implementation of the ShopService reference application, modelled on `sp
 On Ubuntu 24.04, install the dependencies with:
 
 ```bash
-sudo ACCEPT_EULA=Y apt-get install -y unixodbc-dev msodbcsql18 libgtest-dev nlohmann-json3-dev libcpp-httplib-dev
+sudo apt-get install -y unixodbc-dev libgtest-dev nlohmann-json3-dev libcpp-httplib-dev
 ```
 
-`msodbcsql18` comes from the [Microsoft package repository](https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server).
+Build the OJP ODBC driver from [Open-JDBC-Proxy/ojp](https://github.com/Open-JDBC-Proxy/ojp) and register it with unixODBC under the name `OJP`. The Microsoft ODBC driver is not needed. The OJP server needs Java 25 and the SQL Server JDBC driver in its `ojp-libs` directory. The complete build, driver registration, and three-server startup are in `.github/workflows/cpp-shopservice.yml`, following the Python workflow.
+
+From an existing OJP source checkout, build and start a single local server:
+
+```bash
+mvn clean install -U -pl ojp-server -am -DskipTests -Dgpg.skip=true
+bash ojp-server/download-drivers.sh
+mvn -q dependency:copy -Dartifact=com.microsoft.sqlserver:mssql-jdbc:12.8.2.jre11 \
+  -DoutputDirectory=ojp-libs -Dmdep.stripVersion=false
+OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs \
+  -Dojp.server.port=1059 -Dojp.prometheus.port=9159 -jar "$OJP_JAR"
+```
+
+The C++ client opens fresh connections without client-side pooling; OJP owns the backend pools. Transactions request autocommit-off **before** connecting because the OJP driver does not export `SQLSetConnectAttrW`. Inserts use a separate `SELECT CAST(@@IDENTITY AS BIGINT)` rather than `OUTPUT INSERTED`, which JDBC updates do not support. Both calls run inside a transaction to pin the same backend connection. The application schema has no identity-generating triggers; adding them would require revisiting `@@IDENTITY`.
 
 ---
 
@@ -78,15 +95,16 @@ Configuration is read from environment variables:
 
 | Variable | Description | Default |
 |---|---|---|
-| `DB_HOST` | SQL Server host | `localhost` |
-| `DB_PORT` | SQL Server port | `1433` |
+| `OJP_SERVER` | OJP endpoint(s), `host:port` or a comma-separated list | `localhost:1059` |
+| `DB_HOST` | SQL Server host as reached by the OJP server | `localhost` |
+| `DB_PORT` | SQL Server port as reached by the OJP server | `1433` |
 | `DB_USER` | SQL Server login | `sa` |
 | `DB_PASSWORD` | SQL Server password | *(empty)* |
-| `ODBC_DRIVER` | ODBC driver name, as registered in `odbcinst.ini` | `ODBC Driver 18 for SQL Server` |
+| `ODBC_DRIVER` | OJP ODBC driver name, as registered in `odbcinst.ini` | `OJP` |
 | `CATALOG_DB` | Catalog database name | `cpp_catalog_db` |
 | `CHECKOUT_DB` | Checkout database name | `cpp_checkout_db` |
-| `DB_ENCRYPT` | ODBC `Encrypt` attribute | `false` |
-| `DB_TRUST_SERVER_CERTIFICATE` | ODBC `TrustServerCertificate` attribute | `true` |
+| `DB_ENCRYPT` | Backend JDBC `encrypt` property | `false` |
+| `DB_TRUST_SERVER_CERTIFICATE` | Backend JDBC `trustServerCertificate` property | `true` |
 | `BIND_HOST` | HTTP bind address (application only) | `0.0.0.0` |
 | `PORT` | HTTP port (application only) | `8080` |
 
@@ -101,7 +119,7 @@ cmake --build build --parallel
 DB_PASSWORD='<sa password>' ./build/shopservice
 ```
 
-To start a local SQL Server:
+This requires the registered OJP driver and a running OJP server (see above). To start a local SQL Server:
 
 ```bash
 docker run -d --name mssql -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=<sa password>' \
@@ -112,7 +130,7 @@ docker run -d --name mssql -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=<sa password>'
 
 ## Running the integration tests
 
-The tests need a reachable SQL Server, configured with the environment variables above. The test binary creates the databases and tables, starts the HTTP API in-process on a random local port (the equivalent of MockMvc), and runs the suite:
+The integration tests need a reachable OJP server and SQL Server, configured with the environment variables above. The test binary creates the databases and tables through OJP, starts the HTTP API in-process on a random local port (the equivalent of MockMvc), and runs the suite:
 
 ```bash
 DB_PASSWORD='<sa password>' ctest --test-dir build --output-on-failure
@@ -120,11 +138,17 @@ DB_PASSWORD='<sa password>' ctest --test-dir build --output-on-failure
 DB_PASSWORD='<sa password>' ./build/shopservice_it
 ```
 
-The `.github/workflows/cpp-shopservice.yml` workflow runs the same steps in CI. It starts SQL Server 2022 in Docker with a randomly generated password.
+Configuration unit tests can run without OJP or SQL Server:
+
+```bash
+ctest --test-dir build -R shopservice_config_test --output-on-failure
+```
+
+The `.github/workflows/cpp-shopservice.yml` workflow runs the same steps in CI. It starts SQL Server 2022 in Docker with a randomly generated password, builds the OJP server and ODBC driver from `Open-JDBC-Proxy/ojp` `main`, downloads `mssql-jdbc`, and starts three OJP servers on ports 1059, 1060 and 1061 with separate Prometheus ports. Tests use all three endpoints through `OJP_SERVER`. The workflow prints server logs and stops the servers and database even on failure.
 
 ### Integration test suites
 
-These match the seven Spring Boot test classes (30 tests in total):
+These match the seven Spring Boot test classes, with additional generated-ID and transaction-rollback regression tests:
 
 - `CatalogRepositoryIT`: repository tests for User, Product and Review.
 - `CheckoutRepositoryIT`: repository tests for Order and OrderItem.

@@ -4,9 +4,10 @@
 
 namespace shopservice {
 
-// SQL Server connection settings, read from environment variables.
+// OJP endpoints and backend SQL Server settings, read from environment variables.
 struct DatabaseConfig {
-    std::string driver = "ODBC Driver 18 for SQL Server";
+    std::string driver = "OJP";
+    std::string ojpServer = "localhost:1059";
     std::string host = "localhost";
     int port = 1433;
     std::string username = "sa";
@@ -18,7 +19,8 @@ struct DatabaseConfig {
 
     static DatabaseConfig fromEnvironment();
 
-    // Builds an ODBC connection string for SQLDriverConnect targeting the given database.
+    std::string jdbcUrl(const std::string& database) const;
+    // SERVER targets OJP; DATABASE is the backend JDBC URL.
     std::string connectionString(const std::string& database) const;
 };
 

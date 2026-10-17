@@ -28,14 +28,18 @@ CREATE TABLE dbo.cpp_users (
     email      VARCHAR(255) NOT NULL,
     created_at DATETIME2(6) NULL
 );
+)SQL");
 
+    conn.executeBatch(R"SQL(
 IF OBJECT_ID(N'dbo.cpp_products', N'U') IS NULL
 CREATE TABLE dbo.cpp_products (
     id    BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
     name  VARCHAR(255)   NOT NULL,
     price DECIMAL(19, 2) NOT NULL
 );
+)SQL");
 
+    conn.executeBatch(R"SQL(
 IF OBJECT_ID(N'dbo.cpp_reviews', N'U') IS NULL
 CREATE TABLE dbo.cpp_reviews (
     id         BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,
@@ -57,7 +61,9 @@ CREATE TABLE dbo.cpp_orders (
     user_id    BIGINT NOT NULL,
     order_date DATETIME2(6) NULL CONSTRAINT df_cpp_orders_order_date DEFAULT SYSDATETIME()
 );
+)SQL");
 
+    conn.executeBatch(R"SQL(
 IF OBJECT_ID(N'dbo.cpp_order_items', N'U') IS NULL
 CREATE TABLE dbo.cpp_order_items (
     id         BIGINT IDENTITY(1,1) NOT NULL PRIMARY KEY,

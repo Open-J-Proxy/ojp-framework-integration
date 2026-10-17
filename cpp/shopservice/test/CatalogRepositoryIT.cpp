@@ -37,6 +37,30 @@ TEST_F(CatalogRepositoryIT, testUserFindAll) {
     EXPECT_EQ(3u, all.size());
 }
 
+TEST_F(CatalogRepositoryIT, testGeneratedIdsReferToInsertedRows) {
+    auto saved = userRepository.saveAll({user("alice", "alice@example.com"), user("bob", "bob@example.com")});
+    ASSERT_EQ(2u, saved.size());
+    ASSERT_TRUE(saved[0].id.has_value());
+    ASSERT_TRUE(saved[1].id.has_value());
+    EXPECT_NE(saved[0].id, saved[1].id);
+    for (const auto& u : saved) {
+        auto found = userRepository.findById(*u.id);
+        ASSERT_TRUE(found.has_value());
+        EXPECT_EQ(u.username, found->username);
+        EXPECT_EQ(u.email, found->email);
+    }
+}
+
+TEST_F(CatalogRepositoryIT, testSaveAllRollsBackOnFailure) {
+    EXPECT_THROW(userRepository.saveAll({user("alice", "alice@example.com"),
+                                        user(std::string(256, 'x'), "invalid@example.com")}),
+                 odbc::OdbcError);
+    EXPECT_EQ(0, userRepository.count());
+    auto saved = userRepository.save(user("bob", "bob@example.com"));
+    ASSERT_TRUE(saved.id.has_value());
+    EXPECT_TRUE(userRepository.findById(*saved.id).has_value());
+}
+
 TEST_F(CatalogRepositoryIT, testUserDeleteAll) {
     userRepository.saveAll({user("alice", "alice@example.com"), user("bob", "bob@example.com")});
     ASSERT_EQ(2, userRepository.count());

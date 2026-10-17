@@ -127,15 +127,29 @@ Environment::~Environment() {
 
 // ── Connection ──────────────────────────────────────────────────────────────
 
-Connection::Connection(const Environment& env, const std::string& connectionString) {
+Connection::Connection(const Environment& env, const std::string& connectionString, bool autoCommit)
+    : autoCommit_(autoCommit) {
     if (!SQL_SUCCEEDED(SQLAllocHandle(SQL_HANDLE_DBC, env.handle(), &dbc_))) {
         throw OdbcError("Unable to allocate ODBC connection handle", "HY001");
     }
     SQLSetConnectAttr(dbc_, SQL_ATTR_LOGIN_TIMEOUT, reinterpret_cast<SQLPOINTER>(15), 0);
 
+    // Set this before connect: unixODBC otherwise requires SQLSetConnectAttrW,
+    // which the OJP driver does not export.
+    SQLRETURN rc = SQLSetConnectAttr(
+        dbc_, SQL_ATTR_AUTOCOMMIT,
+        reinterpret_cast<SQLPOINTER>(static_cast<SQLULEN>(autoCommit ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF)),
+        SQL_IS_UINTEGER);
+    if (!SQL_SUCCEEDED(rc)) {
+        Diagnostic diag = readDiagnostics(SQL_HANDLE_DBC, dbc_);
+        SQLFreeHandle(SQL_HANDLE_DBC, dbc_);
+        dbc_ = SQL_NULL_HDBC;
+        throw OdbcError("Unable to set auto-commit mode: " + diag.message, diag.sqlState);
+    }
+
     SQLCHAR out[1024];
     SQLSMALLINT outLength = 0;
-    SQLRETURN rc = SQLDriverConnect(
+    rc = SQLDriverConnect(
         dbc_, nullptr,
         reinterpret_cast<SQLCHAR*>(const_cast<char*>(connectionString.c_str())), SQL_NTS,
         out, static_cast<SQLSMALLINT>(sizeof(out)), &outLength, SQL_DRIVER_NOPROMPT);
@@ -276,27 +290,7 @@ void Connection::executeBatch(const std::string& sql) {
     if (rc != SQL_NO_DATA && !SQL_SUCCEEDED(rc)) {
         fail(SQL_HANDLE_STMT, stmt, "SQLExecDirect failed");
     }
-    // Drain every result so errors raised by later statements in the batch surface.
-    for (;;) {
-        rc = SQLMoreResults(stmt);
-        if (rc == SQL_NO_DATA) {
-            break;
-        }
-        if (!SQL_SUCCEEDED(rc)) {
-            fail(SQL_HANDLE_STMT, stmt, "SQLMoreResults failed");
-        }
-    }
-}
-
-void Connection::setAutoCommit(bool enabled) {
-    SQLRETURN rc = SQLSetConnectAttr(
-        dbc_, SQL_ATTR_AUTOCOMMIT,
-        reinterpret_cast<SQLPOINTER>(static_cast<SQLULEN>(enabled ? SQL_AUTOCOMMIT_ON : SQL_AUTOCOMMIT_OFF)),
-        SQL_IS_UINTEGER);
-    if (!SQL_SUCCEEDED(rc)) {
-        fail(SQL_HANDLE_DBC, dbc_, "Unable to change auto-commit mode");
-    }
-    autoCommit_ = enabled;
+    // OJP executes DDL via JDBC executeUpdate and does not export SQLMoreResults.
 }
 
 void Connection::commit() {
@@ -316,8 +310,8 @@ void Connection::rollback() {
 DataSource::DataSource(std::shared_ptr<Environment> env, std::string connectionString)
     : env_(std::move(env)), connectionString_(std::move(connectionString)) {}
 
-DataSource::Lease DataSource::acquire() {
-    return Lease(std::make_unique<Connection>(*env_, connectionString_));
+DataSource::Lease DataSource::acquire(bool autoCommit) {
+    return Lease(std::make_unique<Connection>(*env_, connectionString_, autoCommit));
 }
 
 }  // namespace shopservice::odbc
