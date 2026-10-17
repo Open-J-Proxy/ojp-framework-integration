@@ -14,7 +14,7 @@ A C++17 implementation of the ShopService reference application, modelled on `sp
 - **Order management**: orders with cascaded order items (`/orders`, `/orders/{id}`).
 - **Order item management**: items within an order (`/orders/{orderId}/items`, `/orders/{orderId}/items/{itemId}`).
 - **Plain ODBC**: uses only `SQLDriverConnect`, `SQLPrepare`, `SQLBindParameter`, `SQLExecute`, `SQLFetch`, `SQLGetData`, `SQLEndTran` and related calls. There is no ORM and no vendor client library.
-- **Two datasources**: `cpp_catalog_db` and `cpp_checkout_db`, each with its own small connection pool. Every table name has the `cpp_` prefix so it cannot clash with the other framework modules.
+- **Two datasources**: `cpp_catalog_db` and `cpp_checkout_db`. Each operation opens a fresh database connection, which is closed when the operation or transaction ends. Every table name has the `cpp_` prefix so it cannot clash with the other framework modules.
 
 ---
 
