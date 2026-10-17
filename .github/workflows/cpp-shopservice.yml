@@ -1,6 +1,7 @@
 name: C++ ODBC ShopService Integration Tests
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
