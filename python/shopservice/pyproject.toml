@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shopservice"
+version = "0.1.0"
+description = "Python (FastAPI + SQLAlchemy over native ODBC) port of the spring-boot shopservice, backed by SQL Server"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi==0.143.3",
+    "SQLAlchemy==2.1.5",
+    "pyodbc==5.3.0",
+    "uvicorn==0.54.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+]
+
+[project.scripts]
+shopservice = "shopservice.main:main"
+
+[tool.setuptools.packages.find]
+include = ["shopservice*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
