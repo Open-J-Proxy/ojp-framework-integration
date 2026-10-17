@@ -313,43 +313,11 @@ void Connection::rollback() {
 
 // ── DataSource ──────────────────────────────────────────────────────────────
 
-DataSource::Lease::~Lease() {
-    if (ds_ != nullptr && conn_) {
-        ds_->release(std::move(conn_));
-    }
-}
-
-DataSource::DataSource(std::shared_ptr<Environment> env, std::string connectionString, std::size_t maxIdle)
-    : env_(std::move(env)), connectionString_(std::move(connectionString)), maxIdle_(maxIdle) {}
+DataSource::DataSource(std::shared_ptr<Environment> env, std::string connectionString)
+    : env_(std::move(env)), connectionString_(std::move(connectionString)) {}
 
 DataSource::Lease DataSource::acquire() {
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if (!idle_.empty()) {
-            std::unique_ptr<Connection> conn = std::move(idle_.back());
-            idle_.pop_back();
-            return Lease(this, std::move(conn));
-        }
-    }
-    return Lease(this, std::make_unique<Connection>(*env_, connectionString_));
-}
-
-void DataSource::release(std::unique_ptr<Connection> conn) {
-    if (!conn->broken() && !conn->autoCommit()) {
-        try {
-            conn->rollback();
-            conn->setAutoCommit(true);
-        } catch (...) {
-            conn->markBroken();
-        }
-    }
-    if (conn->broken()) {
-        return;
-    }
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (idle_.size() < maxIdle_) {
-        idle_.push_back(std::move(conn));
-    }
+    return Lease(std::make_unique<Connection>(*env_, connectionString_));
 }
 
 }  // namespace shopservice::odbc

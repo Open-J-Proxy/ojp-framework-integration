@@ -8,7 +8,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -119,16 +118,17 @@ private:
     bool broken_ = false;
 };
 
-// A minimal thread-safe connection pool for one database ("datasource").
+// Creates a fresh connection for each acquired operation.
 class DataSource {
 public:
     class Lease {
     public:
-        Lease(DataSource* ds, std::unique_ptr<Connection> conn) : ds_(ds), conn_(std::move(conn)) {}
+        explicit Lease(std::unique_ptr<Connection> conn) : conn_(std::move(conn)) {}
         Lease(Lease&& other) noexcept = default;
-        Lease& operator=(Lease&&) = delete;
+        Lease& operator=(Lease&&) noexcept = default;
         Lease(const Lease&) = delete;
-        ~Lease();
+        Lease& operator=(const Lease&) = delete;
+        ~Lease() = default;
 
         Connection& operator*() { return *conn_; }
         Connection* operator->() { return conn_.get(); }
@@ -138,11 +138,11 @@ public:
         std::unique_ptr<Connection> conn_;
     };
 
-    DataSource(std::shared_ptr<Environment> env, std::string connectionString, std::size_t maxIdle = 8);
+    DataSource(std::shared_ptr<Environment> env, std::string connectionString);
 
     Lease acquire();
 
-    // Runs fn inside a transaction on a pooled connection; commits on success,
+    // Runs fn inside a transaction on a fresh connection; commits on success,
     // rolls back on any exception.
     template <typename Fn>
     auto inTransaction(Fn&& fn) -> decltype(fn(std::declval<Connection&>())) {
@@ -171,13 +171,8 @@ public:
     }
 
 private:
-    void release(std::unique_ptr<Connection> conn);
-
     std::shared_ptr<Environment> env_;
     std::string connectionString_;
-    std::size_t maxIdle_;
-    std::mutex mutex_;
-    std::vector<std::unique_ptr<Connection>> idle_;
 };
 
 // Escapes a value for use inside an ODBC connection string attribute ({...} form).
