@@ -13,6 +13,7 @@
         <configuration>
             <!-- Use a non-default port to avoid conflicts -->
             <property name="bindHttpPort">9090</property>
+            <property name="configurationXml">src/test/resources/glassfish-domain.xml</property>
         </configuration>
     </container>
 

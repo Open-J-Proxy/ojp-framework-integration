@@ -14,7 +14,7 @@ A REST-based shop service implemented with **GlassFish 7** and **Jakarta EE 10**
 
 | Component              | Technology                            |
 |------------------------|---------------------------------------|
-| **Language**           | Java 21                               |
+| **Language**           | Java 25                               |
 | **Application Server** | GlassFish 7 (Jakarta EE 10)           |
 | **REST**               | JAX-RS (Jersey 3, bundled in GlassFish)|
 | **Persistence**        | JPA 3 / EclipseLink (bundled)         |
@@ -193,7 +193,7 @@ mvn clean verify
 
 ### Prerequisites
 
-- Java 21+
+- Java 25+
 - Maven 3.8+
 - GlassFish 7 (for manual deployment)
 - OJP JDBC driver (`ojp-jdbc-driver-0.0.1-SNAPSHOT-INT-TEST-TMP-VERSION.jar`) installed in your local Maven repository
