@@ -12,9 +12,11 @@ from django.conf import settings
 from django.db import connections
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.state import ProjectState
+from django.db.models.sql.compiler import SQLCompiler, SQLInsertCompiler
+from django.db.models.sql.subqueries import InsertQuery
 
 from shopservice.odbc_backend.base import CursorWrapper, DatabaseWrapper
-from shopservice.odbc_backend.compiler import BaseSQLInsertCompiler, SQLCompiler, SQLInsertCompiler
+from shopservice.models import Order, Product, User
 
 
 @pytest.fixture
@@ -118,54 +120,73 @@ def test_text_result_conversion(backend, field_type, value, expected):
     assert value == expected
 
 
-@pytest.mark.parametrize("table", ["django_users", "django_orders", "django_migrations"])
-def test_generated_id_uses_parameterized_currval(backend, table):
-    cursor = Mock()
+@pytest.mark.parametrize("model,values", [
+    (User, {"username": "alice", "email": "alice@example.com"}),
+    (Product, {"name": "Widget", "price": Decimal("19.99")}),
+    (Order, {"user_id": 42}),
+])
+@pytest.mark.parametrize("count", [1, 2])
+def test_insert_returning_uses_standard_compiler_and_converts_text_ids(backend, model, values, count):
+    query = InsertQuery(model)
+    fields = [model._meta.get_field(name) for name in values]
+    query.insert_values(fields, [model(**values) for _ in range(count)])
+    compiler = query.get_compiler(connection=backend)
+    assert type(compiler) is SQLInsertCompiler
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
     cursor.fetchone.return_value = ("123",)
-    assert backend.ops.last_insert_id(cursor, table, "id") == 123
-    cursor.execute.assert_called_once_with(
-        "SELECT currval(pg_get_serial_sequence(%s, %s))", [table, "id"],
+    cursor.fetchall.return_value = [("123",), ("124",)]
+    with patch.object(backend, "cursor", return_value=cursor):
+        with patch.object(backend, "set_autocommit", side_effect=AssertionError("no insert-only transaction")):
+            result = compiler.execute_sql([model._meta.pk])
+    assert result == ([[123]] if count == 1 else [[123], [124]])
+    cursor.execute.assert_called_once()
+    sql = cursor.execute.call_args.args[0]
+    assert sql.endswith(f'RETURNING "{model._meta.db_table}"."id"')
+    assert "currval" not in sql
+    if count == 1:
+        cursor.fetchone.assert_called_once()
+        cursor.fetchall.assert_not_called()
+    else:
+        assert "), (" in sql
+        cursor.fetchall.assert_called_once()
+
+
+def test_returning_multiple_columns_uses_field_converters(backend):
+    query = InsertQuery(Product)
+    fields = [Product._meta.get_field("name"), Product._meta.get_field("price")]
+    query.insert_values(fields, [Product(name="Widget", price=Decimal("19.99"))])
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.fetchone.return_value = ("123", "19.99")
+    with patch.object(backend, "cursor", return_value=cursor):
+        rows = query.get_compiler(connection=backend).execute_sql([
+            Product._meta.pk, Product._meta.get_field("price"),
+        ])
+    assert rows == [[123, Decimal("19.99")]]
+    assert cursor.execute.call_args.args[0].endswith(
+        'RETURNING "django_products"."id", "django_products"."price"'
     )
-    assert backend.features.can_return_columns_from_insert is False
-    assert backend.features.can_return_rows_from_bulk_insert is False
 
 
-@pytest.mark.parametrize("alias", ["default", "checkout"])
-def test_insert_compiler_encloses_insert_and_generated_id_in_atomic(alias):
-    compiler = object.__new__(SQLInsertCompiler)
-    compiler.using = alias
-    atomic = MagicMock()
-    events = []
-    atomic.__enter__.side_effect = lambda: events.append("enter")
-    atomic.__exit__.side_effect = lambda *args: events.append("exit")
-    fields = [object()]
-
-    def execute(returning_fields):
-        assert events == ["enter"]
-        assert returning_fields is fields
-        events.append("insert-and-currval")
-        return [(123,)]
-
-    with patch("shopservice.odbc_backend.compiler.transaction.atomic", return_value=atomic) as transaction:
-        with patch.object(BaseSQLInsertCompiler, "execute_sql", side_effect=execute):
-            assert compiler.execute_sql(fields) == [(123,)]
-    transaction.assert_called_once_with(using=alias)
-    assert events == ["enter", "insert-and-currval", "exit"]
-    atomic.__exit__.assert_called_once_with(None, None, None)
+def test_return_insert_columns_handles_empty_fields(backend):
+    assert backend.ops.return_insert_columns([]) == ("", ())
 
 
-def test_insert_compiler_propagates_failure_to_atomic_rollback():
-    compiler = object.__new__(SQLInsertCompiler)
-    compiler.using = "checkout"
-    atomic = MagicMock()
-    atomic.__exit__.return_value = False
-    error = RuntimeError("insert failed")
-    with patch("shopservice.odbc_backend.compiler.transaction.atomic", return_value=atomic):
-        with patch.object(BaseSQLInsertCompiler, "execute_sql", side_effect=error):
-            with pytest.raises(RuntimeError, match="insert failed"):
-                compiler.execute_sql()
-    assert atomic.__exit__.call_args.args[0] is RuntimeError
-    assert atomic.__exit__.call_args.args[1] is error
+def test_returning_timestamp_uses_field_converter(backend):
+    query = InsertQuery(User)
+    query.insert_values(
+        [User._meta.get_field("username"), User._meta.get_field("email")],
+        [User(username="alice", email="alice@example.com")],
+    )
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.fetchone.return_value = ("123", "2024-01-15 10:30:00.123456")
+    with patch.object(backend, "cursor", return_value=cursor):
+        rows = query.get_compiler(connection=backend).execute_sql([
+            User._meta.pk, User._meta.get_field("created_at"),
+        ])
+    assert rows == [[123, datetime(2024, 1, 15, 10, 30, 0, 123456)]]
 
 
 def test_cursor_keeps_postgresql_group_by_sql_without_tsql_rewrite(backend):

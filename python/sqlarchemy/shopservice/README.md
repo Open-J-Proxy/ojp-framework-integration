@@ -39,8 +39,8 @@ How OJP constrains the client:
 
 - **No client-side pooling.** OJP owns the database connection pools, so the engines use `NullPool` and unixODBC pooling is turned off (`pyodbc.pooling = False`).
 - **Transactions.** unixODBC treats the OJP driver as a Unicode driver, so it only forwards connection attributes set after connect to `SQLSetConnectAttrW`, which the driver doesn't implement. Manual-commit mode is therefore requested through `attrs_before` during connect, and SQLAlchemy's `commit()`/`rollback()` still reach the driver's `SQLEndTran`.
-- **No `OUTPUT`/RETURNING.** The OJP server runs DML as JDBC updates, so generated IDs are fetched with a follow-up `SELECT` instead of `INSERT ... OUTPUT`.
-- **Text results.** The driver reports result columns as character data. `Numeric` values are converted back to `Decimal` by SQLAlchemy, and `DATETIME2` values are parsed by a small `Timestamp` type.
+- **Generated keys and returning rows.** SQLAlchemy uses SQL Server's native `OUTPUT inserted` for generated keys and INSERT/UPDATE returning rows, and `OUTPUT deleted` for DELETE returning rows. Its default batched inserts remain enabled.
+- **Text results.** The driver reports result columns as character data. Identifier columns convert these values to Python integers, including generated keys and foreign keys; ordered batch inserts also normalize the identity sentinel before SQLAlchemy sorts returned rows. `Numeric` values are converted back to `Decimal` by SQLAlchemy, and `DATETIME2` values are parsed by a small `Timestamp` type.
 
 ---
 
@@ -118,6 +118,12 @@ docker run -d --name mssql -e ACCEPT_EULA=Y -e 'MSSQL_SA_PASSWORD=<sa password>'
 
 ## Running the integration tests
 
+Offline engine, SQL compilation and result-conversion regressions need no OJP server:
+
+```bash
+python -m pytest -v tests/test_database.py
+```
+
 The tests need a reachable OJP server and SQL Server, configured with the environment variables above. The test session creates the databases and tables and runs the API in-process with FastAPI's `TestClient` (the equivalent of MockMvc):
 
 ```bash
@@ -128,7 +134,7 @@ The `.github/workflows/python-shopservice.yml` workflow runs the same steps in C
 
 ### Integration test suites
 
-These match the seven Spring Boot test classes (30 tests in total):
+These match the seven Spring Boot test classes:
 
 - `test_catalog_repository_it.py` (`CatalogRepositoryIT`): repository tests for User, Product and Review.
 - `test_checkout_repository_it.py` (`CheckoutRepositoryIT`): repository tests for Order and OrderItem.

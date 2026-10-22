@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import pyodbc
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -13,6 +14,17 @@ from .config import DatabaseConfig, is_valid_database_name
 from .models import CatalogBase, CheckoutBase
 
 _SQL_AUTOCOMMIT_OFF = 0
+
+
+class _OJPExecutionContext(MSDialect_pyodbc.execution_ctx_cls):
+    def fetchall_for_returning(self, cursor):
+        rows = super().fetchall_for_returning(cursor)
+        imv = self.compiled._insertmanyvalues
+        if imv is not None and imv.implicit_sentinel:
+            # SQLAlchemy sorts this identity sentinel before applying result processors.
+            # OJP's character metadata would otherwise sort "10" before "9".
+            return [tuple(row[:-1]) + (int(row[-1]),) for row in rows]
+        return rows
 
 
 @dataclass
@@ -41,14 +53,8 @@ def _engine(config: DatabaseConfig, database: str, *, autocommit: bool = False) 
         config.url(database),
         poolclass=NullPool,
         connect_args={"autocommit": True, "attrs_before": attrs_before},
-        use_scope_identity=False,
     )
-    # The OJP server runs INSERT/UPDATE/DELETE as JDBC updates, which reject result sets, so OUTPUT/RETURNING
-    # is disabled and generated IDs are fetched with a follow-up SELECT.
-    engine.dialect.insert_returning = False
-    engine.dialect.update_returning = False
-    engine.dialect.delete_returning = False
-    engine.dialect.use_insertmanyvalues = False
+    engine.dialect.execution_ctx_cls = _OJPExecutionContext
     return engine
 
 

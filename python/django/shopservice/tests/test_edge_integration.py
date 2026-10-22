@@ -198,6 +198,51 @@ def test_nested_atomic_savepoint_rollback_preserves_outer_transaction(repos, kin
     assert [item.pk for item in repository.find_all()] == [first.pk, last.pk]
 
 
+@pytest.mark.parametrize("kind", ["products", "orders"])
+def test_model_save_returns_generated_id_in_one_statement(repos, kind):
+    repository = getattr(repos, kind)
+    entity = new_product("single", "1.25") if kind == "products" else new_order(11)
+    statements = []
+
+    def record(execute, sql, params, many, context):
+        statements.append(sql)
+        return execute(sql, params, many, context)
+
+    with connections[repository.alias].execute_wrapper(record):
+        entity.save(using=repository.alias)
+    assert isinstance(entity.pk, int)
+    assert len(statements) == 1
+    assert statements[0].startswith("INSERT") and "RETURNING" in statements[0]
+    assert repository.find_by_id(entity.pk) is not None
+
+
+@pytest.mark.parametrize("kind", ["products", "orders"])
+def test_bulk_create_returns_generated_ids_without_identity_queries(repos, kind):
+    repository = getattr(repos, kind)
+    entities = (
+        [new_product("first", "1.25"), new_product("second", "2.50")]
+        if kind == "products" else [new_order(11), new_order(22)]
+    )
+    statements = []
+
+    def record(execute, sql, params, many, context):
+        statements.append(sql)
+        return execute(sql, params, many, context)
+
+    with connections[repository.alias].execute_wrapper(record):
+        saved = repository.model.objects.using(repository.alias).bulk_create(entities)
+    assert all(isinstance(entity.pk, int) for entity in saved)
+    assert len({entity.pk for entity in saved}) == 2
+    assert [entity.pk for entity in repository.find_all()] == [entity.pk for entity in saved]
+    inserts = [sql for sql in statements if sql.startswith("INSERT")]
+    assert len(inserts) == 1 and "RETURNING" in inserts[0]
+    assert not any("currval" in sql.lower() for sql in statements)
+    if kind == "products":
+        assert [entity.name for entity in repository.find_all()] == ["first", "second"]
+    else:
+        assert [entity.user_id for entity in repository.find_all()] == [11, 22]
+
+
 def test_nested_item_ownership_and_defaults(client, repos, checkout):
     user, product, order = checkout
     other = repos.orders.save(new_order(user.pk))

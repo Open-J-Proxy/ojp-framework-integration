@@ -59,10 +59,12 @@ as text, including decimal and timestamp values. PostgreSQL JDBC's default
 implicitly assign to numeric/timestamp columns. With ``stringtype=unspecified``,
 PostgreSQL infers each parameter's type from the SQL context.
 
-Generated IDs use PostgreSQL ``serial``/``bigserial`` columns and a separate
-``SELECT currval(pg_get_serial_sequence(...))`` on the same connection, never
-``INSERT RETURNING``. The insert compiler wraps both statements in one
-transaction so OJP retains the same JDBC session. Autocommit transitions
+Generated IDs use PostgreSQL ``serial``/``bigserial`` columns and standard
+``INSERT ... RETURNING`` through Django's built-in SQL compiler, including
+``bulk_create()``. Current OJP supports result-producing DML; returned IDs,
+decimals and timestamps use the same text-result converters as SELECT.
+No follow-up identity query or insert-only transaction wrapper is needed.
+Repository transactions still keep multi-write operations atomic. Autocommit transitions
 reconnect using pre-connect ODBC attributes because the driver lacks
 ``SQLSetConnectAttrW``. ORM query results are buffered before iteration; do not
 hold raw cursors open across transaction-mode changes. Django persistent connections and pyodbc

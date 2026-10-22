@@ -1,8 +1,8 @@
 """OJP PostgreSQL adapter using the third-party mssql-django ODBC cursor layer.
 
 Only the transport is shared with mssql-django, not its SQL Server SQL dialect.
-OJP reports result columns as text and executes DML through JDBC executeUpdate,
-so values need conversion and generated keys require a separate SELECT.
+OJP supports result-producing DML and reports result columns as text, so
+INSERT RETURNING uses the same value converters as SELECT.
 """
 
 from datetime import datetime
@@ -52,14 +52,13 @@ class DatabaseFeatures(BaseDatabaseFeatures):
     supports_foreign_keys = True
     supports_column_check_constraints = True
     supports_table_check_constraints = True
-    can_return_columns_from_insert = False
-    can_return_rows_from_bulk_insert = False
-    has_bulk_insert = False
+    can_return_columns_from_insert = True
+    can_return_rows_from_bulk_insert = True
     supports_timezones = False
 
 
 class DatabaseOperations(BaseDatabaseOperations):
-    compiler_module = "shopservice.odbc_backend.compiler"
+    compiler_module = "django.db.models.sql.compiler"
     cast_data_types = {"AutoField": "integer", "BigAutoField": "bigint"}
 
     def quote_name(self, name):
@@ -88,9 +87,15 @@ class DatabaseOperations(BaseDatabaseOperations):
     def savepoint_commit_sql(self, sid):
         return "RELEASE SAVEPOINT " + self._savepoint_name(sid)
 
-    def last_insert_id(self, cursor, table_name, pk_name):
-        cursor.execute("SELECT currval(pg_get_serial_sequence(%s, %s))", [table_name, pk_name])
-        return int(cursor.fetchone()[0])
+    def return_insert_columns(self, fields):
+        columns = [
+            f"{self.quote_name(field.model._meta.db_table)}.{self.quote_name(field.column)}"
+            for field in fields
+        ]
+        return ("RETURNING " + ", ".join(columns), ()) if columns else ("", ())
+
+    def fetch_returned_insert_rows(self, cursor):
+        return cursor.fetchall()
 
     def adapt_datetimefield_value(self, value):
         return value.isoformat(sep=" ") if value is not None else None
