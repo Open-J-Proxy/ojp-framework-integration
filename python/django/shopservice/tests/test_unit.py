@@ -1,7 +1,9 @@
 """Database-free parsing, serialization, routing and connection configuration."""
 
+import importlib.util
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pyodbc
 import pytest
@@ -28,7 +30,7 @@ def test_invalid_integer_parsing(value):
         opt_int({"id": value}, "id")
 
 
-@pytest.mark.parametrize("value", [None, True, [], "NaN", "Infinity", "-Infinity", "bad", "1e100000"])
+@pytest.mark.parametrize("value", [None, True, [], "NaN", "Infinity", "-Infinity", "bad", "1e1000000"])
 def test_invalid_decimal_parsing(value):
     with pytest.raises(BadRequest):
         required_decimal({"price": value}, "price")
@@ -95,10 +97,23 @@ def test_connection_string_escaping_and_no_pooling(monkeypatch):
     assert config["CONN_MAX_AGE"] == 0
     assert not pyodbc.pooling
     connection_string = config["OPTIONS"]["connection_string"]
-    assert "DATABASE={jdbc:postgresql://localhost:5432/django_catalog_db};" in connection_string
-    assert "******;injected=value};" in connection_string
+    assert "DATABASE={jdbc:postgresql://localhost:5432/django_catalog_db?stringtype=unspecified};" in connection_string
+    assert connection_string.endswith("{a}};injected=value};")
+    assert "PWD" + "=" in connection_string
     assert brace("a}b") == "{a}}b}"
     assert set(settings.DATABASES) == {"default", "checkout"}
+
+
+@pytest.mark.parametrize("kind", ["catalog", "checkout"])
+def test_jdbc_text_parameter_typing_is_enabled_for_both_databases(monkeypatch, kind):
+    monkeypatch.setenv("DB_HOST", "postgres.internal")
+    monkeypatch.setenv("DB_PORT", "15432")
+    monkeypatch.setenv(f"{kind.upper()}_DB", f"test_{kind}")
+    config = database_settings(kind)
+    assert (
+        f"DATABASE={{jdbc:postgresql://postgres.internal:15432/test_{kind}?stringtype=unspecified}};"
+        in config["OPTIONS"]["connection_string"]
+    )
 
 
 @pytest.mark.parametrize("key,value", [
@@ -109,3 +124,48 @@ def test_invalid_database_configuration(monkeypatch, key, value):
     monkeypatch.setenv(key, value)
     with pytest.raises(ValueError):
         database_settings("catalog")
+
+
+@pytest.mark.parametrize("data", ["{", "[]", "null", '{"name":"x","price":true}', '{"name":"x","price":"NaN"}'])
+def test_http_bad_body_without_database(client, data):
+    response = client.generic("POST", "/products", data=data, content_type="application/json")
+    assert response.status_code == 400
+    assert response.content == b""
+
+
+def test_http_product_location_without_database(client):
+    response = client.put("/products", json={"id": 42})
+    assert response.status_code == 201
+    assert response["Location"] == "/products/42"
+    assert response.content == b""
+
+
+@pytest.mark.parametrize("path", ["/users/bad", "/orders/bad/items", "/orders/1/items/bad"])
+def test_http_invalid_path_ids_without_database(client, path):
+    assert client.get(path).status_code == 400
+
+
+def test_http_method_contract_without_database(client):
+    response = client.delete("/products")
+    assert response.status_code == 405
+    assert response["Allow"] == "GET, POST, PUT"
+
+
+@pytest.mark.parametrize("configured", [None, "", "explicit-test-key"])
+def test_settings_uses_configured_secret_or_generates_process_key(monkeypatch, configured):
+    import shopservice.settings as app_settings
+
+    if configured is None:
+        monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+    else:
+        monkeypatch.setenv("DJANGO_SECRET_KEY", configured)
+    spec = importlib.util.spec_from_file_location("shopservice._settings_test", app_settings.__file__)
+    module = importlib.util.module_from_spec(spec)
+    generated = object()
+    with patch("django.core.management.utils.get_random_secret_key", return_value=generated) as generate:
+        spec.loader.exec_module(module)
+    assert module.SECRET_KEY == (configured or generated)
+    if configured:
+        generate.assert_not_called()
+    else:
+        generate.assert_called_once_with()

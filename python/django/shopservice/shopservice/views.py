@@ -30,7 +30,10 @@ def endpoint(view):
 
 
 def body(request):
-    return as_object(json.loads(request.body))
+    try:
+        return as_object(json.loads(request.body))
+    except ValueError as exc:
+        raise BadRequest("JSON body") from exc
 
 
 def ok(value):

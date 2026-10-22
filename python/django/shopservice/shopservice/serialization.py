@@ -60,7 +60,7 @@ def required_decimal(body, key):
         result = Decimal(str(value))
     except InvalidOperation as exc:
         raise BadRequest(key) from exc
-    if not result.is_finite() or abs(result) >= Decimal("100000000000000000"):
+    if not result.is_finite() or result.copy_abs() >= Decimal("100000000000000000"):
         raise BadRequest(key)
     return result
 

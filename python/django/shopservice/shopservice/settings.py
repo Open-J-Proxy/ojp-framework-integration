@@ -3,13 +3,14 @@
 import os
 
 import pyodbc
+from django.core.management.utils import get_random_secret_key
 
 from .config import database_settings
 
 # Disable the driver's process-wide pool before opening any connections.
 pyodbc.pooling = False
 
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "development-only-not-for-production")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or get_random_secret_key()
 DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,testserver").split(",")
 INSTALLED_APPS = ["catalog.apps.CatalogConfig", "checkout.apps.CheckoutConfig"]

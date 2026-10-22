@@ -21,7 +21,7 @@ def database_settings(kind: str) -> dict:
     fields = {
         "DRIVER": os.environ.get("ODBC_DRIVER", "OJP"),
         "SERVER": os.environ.get("OJP_SERVER", "localhost:1059"),
-        "DATABASE": f"jdbc:postgresql://{host}:{port}/{name}",
+        "DATABASE": f"jdbc:postgresql://{host}:{port}/{name}?stringtype=unspecified",
         "UID": os.environ.get("DB_USER", "postgres"),
         "PWD": os.environ.get("DB_PASSWORD", ""),
     }

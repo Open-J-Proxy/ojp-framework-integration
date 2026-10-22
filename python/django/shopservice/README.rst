@@ -41,15 +41,37 @@ the databases.
 
 The connection string uses braced, escaped values::
 
-    DRIVER={OJP};SERVER={localhost:1059};DATABASE={jdbc:postgresql://localhost:5432/django_catalog_db};UID={postgres};******;
+    DRIVER={OJP};SERVER={localhost:1059};DATABASE={jdbc:postgresql://localhost:5432/django_catalog_db?stringtype=unspecified};UID={postgres};******;
 
 The backend is ``shopservice.odbc_backend`` and receives this string through
-``OPTIONS["connection_string"]``. Django persistent connections and pyodbc
+``OPTIONS["connection_string"]``. This is a project-specific PostgreSQL adapter,
+not an official PostgreSQL backend supplied by ``mssql-django``. The pinned
+``mssql-django==1.7.2`` dependency provides only its third-party pyodbc
+``CursorWrapper`` transport; its SQL Server dialect, schema editor and
+connection backend are not used. Generic Django backend classes and the local
+adapter supply PostgreSQL SQL, schema operations, introspection and conversion
+of OJP's text results. This adapter targets this sample's models and migrations,
+not arbitrary Django applications or every PostgreSQL feature.
+
+The JDBC URL must include ``?stringtype=unspecified``. OJP transports parameters
+as text, including decimal and timestamp values. PostgreSQL JDBC's default
+``setString`` binding sends VARCHAR parameters, which PostgreSQL cannot
+implicitly assign to numeric/timestamp columns. With ``stringtype=unspecified``,
+PostgreSQL infers each parameter's type from the SQL context.
+
+Generated IDs use PostgreSQL ``serial``/``bigserial`` columns and a separate
+``SELECT currval(pg_get_serial_sequence(...))`` on the same connection, never
+``INSERT RETURNING``. Django persistent connections and pyodbc
 pooling are disabled: connections are scoped to a request, while OJP owns
 server-side pooling. For deployment, set ``DJANGO_SECRET_KEY`` and
 ``DJANGO_ALLOWED_HOSTS`` (comma-separated); debug defaults to off. The sample
 API is intentionally unauthenticated and must not be exposed publicly without
 appropriate access controls.
+
+Production must set ``DJANGO_SECRET_KEY`` to a strong, stable secret shared by
+all application workers. When it is absent or empty, development startup
+generates a random key for that process instead of using a known signing key.
+Such ephemeral keys are not suitable for production signing or future sessions.
 
 REST contracts
 --------------
@@ -83,3 +105,6 @@ databases. Do not point them at data you want to retain::
 The integration suite mirrors the reference's 30 repository/controller cases
 and adds routing, filtering, pagination, malformed-input, cascade, orphan and
 transaction rollback coverage. Unit tests do not connect to either database.
+Use pytest rather than Django's test runner: the fixtures manually migrate the
+two existing databases and do not invoke Django's automatic test-database
+creation.

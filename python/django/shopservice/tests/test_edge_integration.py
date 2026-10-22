@@ -1,5 +1,6 @@
 """Multi-database correctness, error contracts and atomic aggregate changes."""
 
+import json
 from datetime import datetime
 
 import pytest
@@ -26,7 +27,7 @@ def test_missing_resources(client, resource):
 @pytest.mark.parametrize("data", [[], None, {"name": "x"}, {"name": "x", "price": True},
                                       {"name": "x", "price": "NaN"}, {"name": "x", "price": "Infinity"}])
 def test_invalid_product_body(client, data):
-    response = client.generic("POST", "/products", data=__import__("json").dumps(data),
+    response = client.generic("POST", "/products", data=json.dumps(data),
                               content_type="application/json")
     assert response.status_code == 400
 
@@ -154,6 +155,29 @@ def test_order_replacement_rolls_back_all_checkout_changes(repos, checkout, monk
         ])
     assert repos.orders.find_by_id(order.pk).user_id != -1
     assert [item.pk for item in repos.order_items.find_by_order_id(order.pk)] == [old.pk]
+
+
+@pytest.mark.parametrize("kind", ["products", "orders"])
+def test_repository_save_all_rolls_back_each_database(repos, monkeypatch, kind):
+    repository = getattr(repos, kind)
+    original_save = repository.model.save
+    calls = 0
+
+    def fail_second_save(self, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("injected batch failure")
+        return original_save(self, *args, **kwargs)
+
+    monkeypatch.setattr(repository.model, "save", fail_second_save)
+    entities = (
+        [new_product("first", "1.00"), new_product("second", "2.00")]
+        if kind == "products" else [new_order(1), new_order(2)]
+    )
+    with pytest.raises(RuntimeError, match="injected batch"):
+        repository.save_all(entities)
+    assert repository.count() == 0
 
 
 def test_nested_item_ownership_and_defaults(client, repos, checkout):
