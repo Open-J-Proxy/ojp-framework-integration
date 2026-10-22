@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 
 import pytest
-from django.db import connections
+from django.db import connections, transaction
 
 from conftest import new_order, new_order_item, new_product, new_review, new_user
 from shopservice.models import OrderItem
@@ -178,6 +178,24 @@ def test_repository_save_all_rolls_back_each_database(repos, monkeypatch, kind):
     with pytest.raises(RuntimeError, match="injected batch"):
         repository.save_all(entities)
     assert repository.count() == 0
+
+
+@pytest.mark.parametrize("kind", ["products", "orders"])
+def test_nested_atomic_savepoint_rollback_preserves_outer_transaction(repos, kind):
+    repository = getattr(repos, kind)
+
+    def entity(name):
+        return new_product(name, "1.00") if kind == "products" else new_order(1)
+
+    with transaction.atomic(using=repository.alias):
+        first = repository.save(entity("first"))
+        with pytest.raises(RuntimeError, match="rollback inner"):
+            with transaction.atomic(using=repository.alias):
+                repository.save(entity("discarded"))
+                raise RuntimeError("rollback inner")
+        last = repository.save(entity("last"))
+        assert repository.count() == 2
+    assert [item.pk for item in repository.find_all()] == [first.pk, last.pk]
 
 
 def test_nested_item_ownership_and_defaults(client, repos, checkout):

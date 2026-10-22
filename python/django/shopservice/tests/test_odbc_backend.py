@@ -70,6 +70,31 @@ def test_failed_autocommit_reconnect_preserves_existing_connection(backend):
     old_connection.close.assert_not_called()
 
 
+@pytest.mark.parametrize("method,prefix", [
+    ("savepoint_create_sql", "SAVEPOINT"),
+    ("savepoint_rollback_sql", "ROLLBACK TO SAVEPOINT"),
+    ("savepoint_commit_sql", "RELEASE SAVEPOINT"),
+])
+def test_savepoint_sql_uses_ojp_unquoted_identifiers(backend, method, prefix):
+    sid = "s140380232854400_x1"
+    sql = getattr(backend.ops, method)(sid)
+    assert sql == f"{prefix} {sid}"
+    raw_cursor = Mock()
+    CursorWrapper(raw_cursor, backend).execute(sql)
+    raw_cursor.execute.assert_called_once_with(sql, ())
+
+
+@pytest.mark.parametrize("sid", [
+    "", 's1"; DROP TABLE django_users; --', '"s1"', "s1 s2", "s1;", "1s", "s-é", None,
+])
+@pytest.mark.parametrize("method", [
+    "savepoint_create_sql", "savepoint_rollback_sql", "savepoint_commit_sql",
+])
+def test_savepoint_sql_rejects_invalid_identifiers(backend, method, sid):
+    with pytest.raises(ValueError, match="Invalid OJP savepoint identifier"):
+        getattr(backend.ops, method)(sid)
+
+
 @pytest.mark.parametrize("field_type,value,expected", [
     ("BigAutoField", "9223372036854775807", 9223372036854775807),
     ("AutoField", "42", 42),

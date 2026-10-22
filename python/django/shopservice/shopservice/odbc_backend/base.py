@@ -7,6 +7,7 @@ so values need conversion and generated keys require a separate SELECT.
 
 from datetime import datetime
 from decimal import Decimal
+import re
 
 import pyodbc
 from django.db.backends.base.base import BaseDatabaseWrapper
@@ -71,6 +72,21 @@ class DatabaseOperations(BaseDatabaseOperations):
 
     def deferrable_sql(self):
         return " DEFERRABLE INITIALLY DEFERRED"
+
+    def _savepoint_name(self, sid):
+        # OJP intercepts savepoint SQL and accepts only unquoted identifiers.
+        if not isinstance(sid, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*", sid):
+            raise ValueError("Invalid OJP savepoint identifier")
+        return sid
+
+    def savepoint_create_sql(self, sid):
+        return "SAVEPOINT " + self._savepoint_name(sid)
+
+    def savepoint_rollback_sql(self, sid):
+        return "ROLLBACK TO SAVEPOINT " + self._savepoint_name(sid)
+
+    def savepoint_commit_sql(self, sid):
+        return "RELEASE SAVEPOINT " + self._savepoint_name(sid)
 
     def last_insert_id(self, cursor, table_name, pk_name):
         cursor.execute("SELECT currval(pg_get_serial_sequence(%s, %s))", [table_name, pk_name])
