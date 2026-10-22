@@ -61,7 +61,11 @@ PostgreSQL infers each parameter's type from the SQL context.
 
 Generated IDs use PostgreSQL ``serial``/``bigserial`` columns and a separate
 ``SELECT currval(pg_get_serial_sequence(...))`` on the same connection, never
-``INSERT RETURNING``. Django persistent connections and pyodbc
+``INSERT RETURNING``. The insert compiler wraps both statements in one
+transaction so OJP retains the same JDBC session. Autocommit transitions
+reconnect using pre-connect ODBC attributes because the driver lacks
+``SQLSetConnectAttrW``. ORM query results are buffered before iteration; do not
+hold raw cursors open across transaction-mode changes. Django persistent connections and pyodbc
 pooling are disabled: connections are scoped to a request, while OJP owns
 server-side pooling. For deployment, set ``DJANGO_SECRET_KEY`` and
 ``DJANGO_ALLOWED_HOSTS`` (comma-separated); debug defaults to off. The sample
@@ -108,3 +112,9 @@ transaction rollback coverage. Unit tests do not connect to either database.
 Use pytest rather than Django's test runner: the fixtures manually migrate the
 two existing databases and do not invoke Django's automatic test-database
 creation.
+
+The ``.github/workflows/python-django-shopservice.yml`` workflow provisions
+PostgreSQL 16 and both databases, builds/registers the OJP ODBC driver, starts
+three OJP servers with separate metrics ports, and runs the entire suite.
+Local integration runs require that same OJP/PostgreSQL infrastructure;
+collecting tests or running unit tests alone does not validate the live path.

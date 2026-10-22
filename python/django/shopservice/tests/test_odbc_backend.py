@@ -14,7 +14,7 @@ from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.state import ProjectState
 
 from shopservice.odbc_backend.base import CursorWrapper, DatabaseWrapper
-from shopservice.odbc_backend.compiler import BaseSQLInsertCompiler, SQLInsertCompiler
+from shopservice.odbc_backend.compiler import BaseSQLInsertCompiler, SQLCompiler, SQLInsertCompiler
 
 
 @pytest.fixture
@@ -163,6 +163,38 @@ def test_cursor_fetchone_never_calls_more_results(backend):
     assert cursor.fetchone() == ("42", "text")
     assert cursor.fetchone() is None
     raw_cursor.nextset.assert_not_called()
+
+
+def test_cursor_formats_booleans_as_postgresql_text_without_changing_other_values(backend):
+    cursor = CursorWrapper(Mock(), backend)
+    assert cursor.format_params([True, False, 1, 0, None, "text", Decimal("2.50")]) == (
+        "true", "false", 1, 0, None, "text", Decimal("2.50"),
+    )
+    assert cursor.format_params(None) == ()
+
+
+def test_cursor_executes_boolean_parameters_without_sqlserver_integer_coercion(backend):
+    raw_cursor = Mock()
+    cursor = CursorWrapper(raw_cursor, backend)
+    cursor.execute("SELECT %s::boolean, %s::boolean", [True, False])
+    raw_cursor.execute.assert_called_once_with("SELECT ?::boolean, ?::boolean", ("true", "false"))
+
+
+def test_chunked_iterator_buffers_results_before_reconnect_can_invalidate_cursor(backend):
+    assert backend.features.can_use_chunked_reads is False
+    compiler = object.__new__(SQLCompiler)
+    compiler.connection = backend
+    compiler.as_sql = Mock(return_value=("SELECT id FROM django_users", []))
+    compiler.has_extra_select = False
+    compiler.col_count = 1
+    raw_cursor = Mock()
+    raw_cursor.fetchmany.side_effect = [[("first",)], [("second",)], []]
+    with patch.object(backend, "chunked_cursor", return_value=raw_cursor):
+        rows = compiler.execute_sql(chunked_fetch=True, chunk_size=1)
+    assert rows == [[("first",)], [("second",)]]
+    assert isinstance(rows, list)
+    assert raw_cursor.fetchmany.call_count == 3
+    raw_cursor.close.assert_called_once_with()
 
 
 def test_introspection_lists_postgresql_tables_for_migration_recorder(backend):

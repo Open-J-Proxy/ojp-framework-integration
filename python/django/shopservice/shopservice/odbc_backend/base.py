@@ -20,6 +20,14 @@ from mssql.base import CursorWrapper as ODBCCursorWrapper
 
 
 class CursorWrapper(ODBCCursorWrapper):
+    def format_params(self, params):
+        # mssql-django converts bool to 0/1, which PostgreSQL cannot assign to
+        # boolean columns. Text binds use pgjdbc's stringtype=unspecified.
+        return super().format_params(
+            [("true" if value else "false") if isinstance(value, bool) else value for value in params]
+            if params is not None else None
+        )
+
     def execute(self, sql, params=None):
         # The upstream GROUP BY rewrite emits T-SQL DECLARE statements.
         self.last_sql = sql
@@ -33,6 +41,9 @@ class CursorWrapper(ODBCCursorWrapper):
 
 
 class DatabaseFeatures(BaseDatabaseFeatures):
+    # Autocommit changes reconnect, so consume results before yielding objects
+    # that application code might save inside an iterator loop.
+    can_use_chunked_reads = False
     supports_transactions = True
     can_rollback_ddl = True
     uses_savepoints = True
