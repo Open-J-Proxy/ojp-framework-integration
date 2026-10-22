@@ -25,7 +25,7 @@ This project demonstrates a multi-entity, relational domain model with CRUD oper
 
 ## Tech Stack
 
-- **Java 21**
+- **Java 25**
 - **Quarkus 3.x**
 - **Hibernate ORM with Panache**
 - **JAX-RS (RESTEasy Reactive)**
@@ -38,7 +38,7 @@ This project demonstrates a multi-entity, relational domain model with CRUD oper
 
 ## Prerequisites
 
-- Java 21+
+- Java 25+
 - Maven 3.8+
 - No need for a local database—H2 is used for development and testing.
 - Docker only if you plan to run with a production database (not needed for defaults).
