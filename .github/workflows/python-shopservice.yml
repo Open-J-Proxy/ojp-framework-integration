@@ -135,11 +135,11 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: python/shopservice/pyproject.toml
+          cache-dependency-path: python/sqlarchemy/shopservice/pyproject.toml
 
       - name: Install Python shopservice
         run: python -m pip install -e ".[test]"
-        working-directory: python/shopservice
+        working-directory: python/sqlarchemy/shopservice
 
       - name: Wait for SQL Server to accept connections
         run: |
@@ -155,7 +155,7 @@ jobs:
 
       - name: Run OJP Python Integration tests (shopservice)
         run: python -m pytest -v
-        working-directory: python/shopservice
+        working-directory: python/sqlarchemy/shopservice
 
       - name: Show OJP server logs
         if: always()
