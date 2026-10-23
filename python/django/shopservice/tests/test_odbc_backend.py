@@ -754,6 +754,29 @@ def test_duration_explain_wraps_complete_transport_query(backend, duration_model
     assert "FROM (EXPLAIN " not in sql
 
 
+@isolate_apps()
+def test_duration_projection_expands_composite_primary_key_columns(backend):
+    class CompositeProbe(models.Model):
+        pk = models.CompositePrimaryKey("tenant", "sequence")
+        tenant = models.IntegerField()
+        sequence = models.IntegerField()
+        elapsed = models.DurationField()
+
+        class Meta:
+            app_label = "odbc_contract"
+            db_table = "composite_probe"
+
+    queryset = CompositeProbe.objects.values("pk", "elapsed")
+    sql, _ = queryset.query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith("SELECT col0, col1, col2::text FROM (SELECT ")
+    assert sql.endswith("AS ojp_result (col0, col1, col2)")
+    cursor = MagicMock()
+    cursor.fetchmany.side_effect = [[("1", "2", "2 days")], []]
+    with patch.object(backend, "cursor", return_value=cursor):
+        with patch.dict(connections._connections.__dict__, default=backend):
+            assert list(queryset) == [{"pk": (1, 2), "elapsed": timedelta(days=2)}]
+
+
 def test_duration_aggregate_result_cast_keeps_interval_arithmetic(backend, duration_model):
     queryset = duration_model.objects.all()
     cursor = MagicMock()

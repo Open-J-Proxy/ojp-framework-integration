@@ -8,6 +8,7 @@ from django.db.backends.postgresql.compiler import (
     SQLUpdateCompiler,
 )
 from django.db.models.sql.compiler import SQLInsertCompiler as ValuesInsertCompiler
+from django.db.models.expressions import ColPairs
 
 
 # UNION components and aggregate subqueries must keep their native SQL types.
@@ -32,6 +33,13 @@ class IntervalResultsMixin:
                 self.select + getattr(self, "_odbc_extra_select", [])
             ]
         )
+        expressions = [
+            column
+            for expression in expressions
+            for column in (
+                expression.get_cols() if isinstance(expression, ColPairs) else [expression]
+            )
+        ]
         if any(
             expression.output_field.get_internal_type() == "DurationField"
             for expression in expressions
