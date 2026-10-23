@@ -1,0 +1,183 @@
+name: Python Django ShopService Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches: [ main ]
+  repository_dispatch:
+    types: [ojp-updated]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # PostgreSQL as seen by OJP; the application connects only to OJP ODBC.
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: postgres
+      # The application only talks to the OJP ODBC driver, which forwards every call to the OJP servers.
+      ODBC_DRIVER: OJP
+      OJP_SERVER: localhost:1059,localhost:1060,localhost:1061
+      CATALOG_DB: django_catalog_db
+      CHECKOUT_DB: django_checkout_db
+    steps:
+      - name: Checkout shopservice code
+        uses: actions/checkout@v5
+
+      - name: Checkout OJP repository
+        uses: actions/checkout@v5
+        with:
+          repository: Open-JDBC-Proxy/ojp
+          ref: main
+          path: ojp
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      # Check Docker availability for the PostgreSQL container
+      - name: Check Docker environment
+        run: |
+          echo "=== Docker Version ==="
+          docker --version || echo "Docker command not found"
+          echo ""
+          echo "=== Docker Info ==="
+          docker info || echo "Docker info failed"
+
+      - name: Start PostgreSQL 16
+        run: |
+          DB_PASSWORD="Py_$(openssl rand -hex 16)_Aa1!"
+          echo "::add-mask::$DB_PASSWORD"
+          echo "DB_PASSWORD=$DB_PASSWORD" >> "$GITHUB_ENV"
+          docker run -d --name django-shopservice-postgres \
+            -e "POSTGRES_PASSWORD=$DB_PASSWORD" \
+            -p 5432:5432 postgres:16
+          for i in $(seq 1 60); do
+            if docker exec django-shopservice-postgres pg_isready -h localhost -U postgres; then
+              docker exec django-shopservice-postgres createdb -U postgres "$CATALOG_DB"
+              docker exec django-shopservice-postgres createdb -U postgres "$CHECKOUT_DB"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become ready in time"
+          exit 1
+
+      - name: Build OJP server
+        run: mvn clean install -U -pl ojp-server -am -DskipTests -Dgpg.skip=true
+        working-directory: ojp
+
+      # Includes the PostgreSQL JDBC driver used by the OJP servers.
+      - name: Download JDBC drivers
+        run: |
+          bash ojp-server/download-drivers.sh
+          ls -l ojp-libs
+        working-directory: ojp
+
+      - name: Install OJP ODBC driver build dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            cmake g++ ninja-build pkg-config \
+            golang-github-gogo-googleapis-dev libgrpc++-dev libprotobuf-dev \
+            protobuf-compiler protobuf-compiler-grpc \
+            unixodbc unixodbc-dev odbcinst
+
+      - name: Build and register OJP ODBC driver
+        run: |
+          cmake -S ojp-client-cpp-odbc -B ojp-client-cpp-odbc/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=OFF \
+            -DGOOGLEAPIS_PROTO_DIR=/usr/share/gocode/src/github.com/gogo/googleapis
+          cmake --build ojp-client-cpp-odbc/build
+          sudo cmake --install ojp-client-cpp-odbc/build --prefix /usr/local
+          DRIVER_LIB=$(find /usr/local/lib* -name 'libojp_odbc.so' | head -1)
+          test -n "$DRIVER_LIB"
+          printf '[OJP]\nDescription=Open J Proxy ODBC driver\nDriver=%s\n' "$DRIVER_LIB" > /tmp/ojp-odbc-driver.ini
+          sudo /usr/bin/odbcinst -i -d -f /tmp/ojp-odbc-driver.ini
+          odbcinst -q -d
+        working-directory: ojp
+
+      - name: Clear previous OJP server logs
+        run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
+
+      - name: Run 3 OJP servers (ports 1059, 1060, 1061)
+        run: |
+          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9159 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
+          echo $! > /tmp/ojp-server-1.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9160 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
+          echo $! > /tmp/ojp-server-2.pid
+          java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1061 -Dojp.prometheus.port=9161 -jar "$OJP_JAR" > /tmp/ojp-server-3.log 2>&1 &
+          echo $! > /tmp/ojp-server-3.pid
+        working-directory: ojp
+
+      - name: Wait for OJP servers to start
+        run: |
+          for i in 1 2 3; do
+            for attempt in $(seq 1 60); do
+              if grep -q "OJP gRPC Server started" "/tmp/ojp-server-$i.log"; then
+                echo "OJP server $i is ready"
+                break
+              fi
+              if [ "$attempt" -eq 60 ]; then
+                echo "OJP server $i did not start in time"
+                cat "/tmp/ojp-server-$i.log"
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: python/django/shopservice/pyproject.toml
+
+      - name: Install Django shopservice
+        run: |
+          python -m pip install -e ".[test]"
+          python -m pip check
+        working-directory: python/django/shopservice
+
+      - name: Check Django configuration and migrations
+        run: |
+          python manage.py check
+          python manage.py makemigrations --check --dry-run
+        working-directory: python/django/shopservice
+
+      - name: Run OJP Django integration tests
+        run: python -m pytest -v
+        working-directory: python/django/shopservice
+
+      - name: Show OJP server logs
+        if: always()
+        run: |
+          for i in 1 2 3; do
+            echo "=== OJP server $i ==="
+            cat "/tmp/ojp-server-$i.log" || echo "No log for OJP server $i"
+          done
+
+      - name: Show PostgreSQL logs
+        if: always()
+        run: docker logs django-shopservice-postgres || echo "PostgreSQL container not found"
+
+      - name: Stop OJP servers and PostgreSQL
+        if: always()
+        run: |
+          for i in 1 2 3; do
+            if [ -f "/tmp/ojp-server-$i.pid" ]; then
+              kill "$(cat "/tmp/ojp-server-$i.pid")" 2>/dev/null || true
+            fi
+          done
+          docker rm -f django-shopservice-postgres || true
