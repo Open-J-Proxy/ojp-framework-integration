@@ -26,8 +26,9 @@ def database_settings(kind: str) -> dict:
         "PWD": os.environ.get("DB_PASSWORD", ""),
     }
     return {
-        "ENGINE": "shopservice.odbc_backend",
+        "ENGINE": "postgresql_odbc",
         "NAME": name,
+        "DISABLE_SERVER_SIDE_CURSORS": True,
         "CONN_MAX_AGE": 0,
         "CONN_HEALTH_CHECKS": False,
         "OPTIONS": {

@@ -2,12 +2,14 @@
 
 import importlib.util
 from decimal import Decimal
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pyodbc
 import pytest
 from django.conf import settings
+from django.core.management import call_command
 
 from shopservice.config import brace, database_settings
 from shopservice.models import Order, OrderItem, Product, Review, User
@@ -87,13 +89,21 @@ def test_no_cross_database_foreign_keys():
     assert OrderItem._meta.get_field("order").remote_field.model is Order
 
 
+def test_models_match_migration_state_without_querying_live_history():
+    output = StringIO()
+    # Compare actual models and migration files, not server migration history.
+    with patch("django.db.migrations.loader.MigrationLoader.check_consistent_history"):
+        call_command("makemigrations", check=True, dry_run=True, stdout=output)
+    assert "No changes detected" in output.getvalue()
+
+
 def test_connection_string_escaping_and_no_pooling(monkeypatch):
     for key in ("DB_HOST", "DB_PORT", "CATALOG_DB", "CHECKOUT_DB", "ODBC_DRIVER", "OJP_SERVER"):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("DB_USER", "user")
     monkeypatch.setenv("DB_PASSWORD", "a};injected=value")
     config = database_settings("catalog")
-    assert config["ENGINE"] == "shopservice.odbc_backend"
+    assert config["ENGINE"] == "postgresql_odbc"
     assert config["CONN_MAX_AGE"] == 0
     assert not pyodbc.pooling
     connection_string = config["OPTIONS"]["connection_string"]

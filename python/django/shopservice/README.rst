@@ -43,15 +43,21 @@ The connection string uses braced, escaped values::
 
     DRIVER={OJP};SERVER={localhost:1059};DATABASE={jdbc:postgresql://localhost:5432/django_catalog_db?stringtype=unspecified};UID={postgres};******;
 
-The backend is ``shopservice.odbc_backend`` and receives this string through
-``OPTIONS["connection_string"]``. This is a project-specific PostgreSQL adapter,
-not an official PostgreSQL backend supplied by ``mssql-django``. The pinned
-``mssql-django==1.7.2`` dependency provides only its third-party pyodbc
-``CursorWrapper`` transport; its SQL Server dialect, schema editor and
-connection backend are not used. Generic Django backend classes and the local
-adapter supply PostgreSQL SQL, schema operations, introspection and conversion
-of OJP's text results. This adapter targets this sample's models and migrations,
-not arbitrary Django applications or every PostgreSQL feature.
+The backend is the application-independent ``postgresql_odbc`` package::
+
+    Django ORM → Django PostgreSQL backend subclasses → ODBC bridge
+               → pyodbc → OJP ODBC driver → OJP server → PostgreSQL
+
+PostgreSQL types, operators, SQL generation, schema-editor behavior and catalog
+introspection come from Django's PostgreSQL backend, not a copied SQL dialect.
+The bridge adapts connection management, cursor placeholders, type conversion,
+schema literal composition and driver metadata. It has no shopservice model
+dependencies and no SQL Server backend dependency.
+
+``psycopg[binary]`` remains installed because Django's PostgreSQL modules import
+psycopg and use its SQL/adaptation helpers. It never opens a database connection:
+all database operations use pyodbc and OJP. Do not replace this backend's ENGINE
+with ``django.db.backends.postgresql``, which would bypass ODBC.
 
 The JDBC URL must include ``?stringtype=unspecified``. OJP transports parameters
 as text, including decimal and timestamp values. PostgreSQL JDBC's default
@@ -59,9 +65,12 @@ as text, including decimal and timestamp values. PostgreSQL JDBC's default
 implicitly assign to numeric/timestamp columns. With ``stringtype=unspecified``,
 PostgreSQL infers each parameter's type from the SQL context.
 
-Generated IDs use PostgreSQL ``serial``/``bigserial`` columns and standard
-``INSERT ... RETURNING`` through Django's built-in SQL compiler, including
-``bulk_create()``. Current OJP supports result-producing DML; returned IDs,
+New tables use Django's PostgreSQL identity columns and standard
+``INSERT ... RETURNING``, including ``bulk_create()``. Existing serial columns
+do not require a migration solely for this backend change. The PostgreSQL
+compiler's array-binding ``UNNEST`` optimization is replaced with ordinary
+``VALUES`` batches at the transport boundary. Current OJP supports
+result-producing DML; returned IDs,
 decimals and timestamps use the same text-result converters as SELECT.
 No follow-up identity query or insert-only transaction wrapper is needed.
 Repository transactions still keep multi-write operations atomic. Autocommit transitions
@@ -78,6 +87,41 @@ Production must set ``DJANGO_SECRET_KEY`` to a strong, stable secret shared by
 all application workers. When it is absent or empty, development startup
 generates a random key for that process instead of using a known signing key.
 Such ephemeral keys are not suitable for production signing or future sessions.
+
+Compatibility scope
+-------------------
+
+The bridge targets Django 5.2.18 and PostgreSQL 14 or newer. PostgreSQL backend
+internals are not a stable third-party driver API. Upgrade Django together with
+the backend regression suite, rather than assuming every PostgreSQL feature
+works over ODBC. Native psycopg pooling and named/server-side cursors are not
+used. ``django.contrib.postgres`` connection hooks, array/range parameters and
+psycopg extension adapters are explicitly unsupported. Catalog arrays needed
+for introspection are decoded separately. PostgreSQL's ``?``, ``?|`` and ``?&``
+operators conflict with ODBC bind markers; use ``jsonb_exists``,
+``jsonb_exists_any`` and ``jsonb_exists_all`` functions instead. Ordinary
+``JSONField`` value storage is supported.
+
+Parameters are bound server-side through ODBC. As with Django's native
+PostgreSQL server-side-binding mode, nested grouped expressions that repeat
+parameterized expressions in SELECT and GROUP BY can fail because PostgreSQL
+treats the bind positions as different expressions. Django's corresponding
+expected-failure declaration is retained.
+
+OJP may lease different backend sessions between autocommit statements. Configure
+the PostgreSQL database/role timezone to match Django (UTC for this sample);
+session settings cannot be assumed to survive outside a transaction. Changing
+autocommit reconnects, so temporary tables and other session-local state do not
+survive those transitions. External ``psql``/``pg_dump`` tools do not speak ODBC
+and must not be used as a hidden direct-connection fallback; ``dbshell`` is
+disabled.
+
+OJP driver workarounds remain explicit: autocommit transitions reconnect,
+savepoint names use validated unquoted identifiers, and transport metadata/type
+conversion needs special handling. These can be simplified once the driver
+supports Unicode connection attributes, quoted savepoints and authoritative
+result metadata. Driver improvements belong in the OJP repository, not this
+application.
 
 REST contracts
 --------------
@@ -110,7 +154,9 @@ databases. Do not point them at data you want to retain::
 
 The integration suite mirrors the reference's 30 repository/controller cases
 and adds routing, filtering, pagination, malformed-input, cascade, orphan and
-transaction rollback coverage. Unit tests do not connect to either database.
+transaction rollback coverage. Backend regressions also exercise PostgreSQL
+component reuse, SQL composition and migration/introspection paths.
+Unit tests do not connect to either database.
 Use pytest rather than Django's test runner: the fixtures manually migrate the
 two existing databases and do not invoke Django's automatic test-database
 creation.
