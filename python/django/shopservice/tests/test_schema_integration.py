@@ -161,6 +161,18 @@ def test_live_typed_orm_round_trip_and_description(schema_table):
         if name == "data":
             actual = bytes(actual)
         assert actual == expected, name
+    durations = model.objects.using(connection.alias)
+    assert durations.aggregate(total=models.Sum("elapsed")) == {"total": values["elapsed"]}
+    assert durations[:1].aggregate(total=models.Sum("elapsed")) == {"total": values["elapsed"]}
+    durations.filter(pk=saved.pk).update(elapsed=timedelta(days=10))
+    another = dict(values, label="short", identifier=uuid4(), elapsed=timedelta(days=2))
+    durations.create(**another)
+    for queryset in (
+        durations.values_list("elapsed", flat=True).order_by("elapsed"),
+        durations.values_list("elapsed", flat=True).order_by("elapsed").distinct(),
+        durations.values_list("elapsed", flat=True).order_by("elapsed").distinct("elapsed"),
+    ):
+        assert list(queryset) == [timedelta(days=2), timedelta(days=10)]
     with connection.cursor() as cursor:
         description = connection.introspection.get_table_description(cursor, model._meta.db_table)
     field_types = {

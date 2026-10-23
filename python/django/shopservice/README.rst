@@ -97,7 +97,12 @@ the backend regression suite, rather than assuming every PostgreSQL feature
 works over ODBC. Native psycopg pooling and named/server-side cursors are not
 used. ``django.contrib.postgres`` connection hooks, array/range parameters and
 psycopg extension adapters are explicitly unsupported. Catalog arrays needed
-for introspection are decoded separately. PostgreSQL's ``?``, ``?|`` and ``?&``
+for introspection are projected as PostgreSQL text before OJP transport and
+decoded separately. ORM interval results (including aggregates and
+``RETURNING``) are also projected as text because OJP cannot serialize JDBC
+``PGInterval`` objects. Filtering, arithmetic and subqueries retain native
+interval types; raw SQL callers must cast interval results explicitly.
+PostgreSQL's ``?``, ``?|`` and ``?&``
 operators conflict with ODBC bind markers; use ``jsonb_exists``,
 ``jsonb_exists_any`` and ``jsonb_exists_all`` functions instead. Ordinary
 ``JSONField`` value storage is supported.

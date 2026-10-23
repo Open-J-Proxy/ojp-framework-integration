@@ -34,6 +34,19 @@ class CatalogCursor:
         # Coupled to Django 5.2.18's two get_constraints() catalog projections:
         # constraint rows first, then the array_agg-based index projection.
         self.indexes = "array_agg" in sql
+        # JDBC arrays aren't transported as PostgreSQL array literals by OJP.
+        # Cast only the catalog result columns, retaining Django's catalog SQL.
+        columns = (
+            ("name", "columns", "is_unique", "is_primary", "orders", "type", "definition", "options")
+            if self.indexes else ("name", "columns", "kind", "used_columns", "options")
+        )
+        arrays = {"columns", "orders", "options"}
+        projection = ", ".join(
+            f'"{column}"::text' if column in arrays else f'"{column}"'
+            for column in columns
+        )
+        aliases = ", ".join(f'"{column}"' for column in columns)
+        sql = f"SELECT {projection} FROM ({sql.rstrip().rstrip(';')}) AS ojp_catalog ({aliases})"
         return self.cursor.execute(sql, params)
 
     def fetchall(self):

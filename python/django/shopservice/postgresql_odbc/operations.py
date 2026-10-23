@@ -24,6 +24,17 @@ class DatabaseOperations(PostgreSQLOperations):
     def adapt_json_value(self, value, encoder):
         return json.dumps(value, cls=encoder)
 
+    def return_insert_columns(self, fields):
+        sql, params = super().return_insert_columns(fields)
+        if any(field.get_internal_type() == "DurationField" for field in fields):
+            columns = [
+                f"{self.quote_name(field.model._meta.db_table)}.{self.quote_name(field.column)}"
+                + ("::text" if field.get_internal_type() == "DurationField" else "")
+                for field in fields
+            ]
+            sql = "RETURNING " + ", ".join(columns)
+        return sql, params
+
     def compose_sql(self, sql, params):
         return interpolate(sql, params, quote)[0]
 

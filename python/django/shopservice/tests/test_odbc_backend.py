@@ -22,10 +22,13 @@ from django.db.backends.postgresql.schema import DatabaseSchemaEditor as Postgre
 from django.db.backends.utils import CursorDebugWrapper
 from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.state import ProjectState
-from django.db.models import Max, Min, Value
+from django.db import models
+from django.db.models import Max, Min, Subquery, Sum, Value
 from django.db.models.functions import Greatest, Least
 from django.db.models.sql.compiler import SQLCompiler, SQLInsertCompiler
 from django.db.models.sql.subqueries import InsertQuery
+from django.db.models.sql.query import ExplainInfo
+from django.test.utils import isolate_apps
 
 from postgresql_odbc.base import CursorWrapper, DatabaseWrapper
 from postgresql_odbc.introspection import parse_pg_array
@@ -674,6 +677,108 @@ def test_catalog_constraints_decode_text_arrays_and_booleans(backend):
     assert "array_agg" in index_query.args[0]
     assert "pg_index" in index_query.args[0]
     assert index_query.args[1] == ["btree", "probe"]
+    for call in (constraint_query, index_query):
+        assert call.args[0].startswith('SELECT "name", "columns"::text, ')
+        assert '"options"::text FROM (' in call.args[0]
+        assert ') AS ojp_catalog (' in call.args[0]
+    assert '"orders"::text' in index_query.args[0]
+
+
+@pytest.fixture
+def duration_model():
+    with isolate_apps():
+        class DurationProbe(models.Model):
+            elapsed = models.DurationField(null=True)
+
+            class Meta:
+                app_label = "odbc_contract"
+                db_table = "duration_probe"
+
+        yield DurationProbe
+
+
+def test_duration_select_casts_only_result_not_filter_or_subquery(backend, duration_model):
+    query = duration_model.objects.filter(elapsed__gt=timedelta(days=1)).query
+    sql, params = query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith('SELECT col0, col1::text FROM (SELECT ')
+    assert 'WHERE "duration_probe"."elapsed" > %s' in sql
+    assert params == (timedelta(days=1),)
+    inner = duration_model.objects.values("elapsed")[:1]
+    query = duration_model.objects.annotate(copy=Subquery(inner)).query
+    sql, _ = query.get_compiler(connection=backend).as_sql()
+    assert '(SELECT U0."elapsed" AS "elapsed" FROM "duration_probe" U0 LIMIT 1)' in sql
+    assert sql.count("::text") == 2
+    assert sql.startswith("SELECT col0, col1::text, col2::text FROM (SELECT ")
+
+
+@pytest.mark.parametrize("distinct", [False, True, "elapsed"])
+def test_duration_projection_preserves_native_ordering_and_distinct(backend, duration_model, distinct):
+    queryset = duration_model.objects.values("elapsed").order_by("elapsed")
+    if distinct is True:
+        queryset = queryset.distinct()
+    elif distinct:
+        queryset = queryset.distinct(distinct)
+    sql, _ = queryset.query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith("SELECT col0::text FROM (SELECT ")
+    assert sql.count("::text") == 1
+    assert '"duration_probe"."elapsed" AS "elapsed"' in sql
+    assert 'ORDER BY 1 ASC) AS ojp_result (col0)' in sql
+    if distinct == "elapsed":
+        assert 'DISTINCT ON ("duration_probe"."elapsed")' in sql
+
+
+def test_duration_union_normalizes_only_final_results(backend, duration_model):
+    queryset = duration_model.objects.values("elapsed")
+    sql, _ = queryset.union(queryset).query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith("SELECT col0::text FROM (")
+    assert " UNION " in sql
+    assert sql.count("::text") == 1
+
+
+def test_distinct_hidden_duration_ordering_column_is_normalized(backend, duration_model):
+    query = duration_model.objects.values("id").order_by("elapsed").distinct().query
+    compiler = query.get_compiler(connection=backend)
+    sql, _ = compiler.as_sql()
+    assert compiler.has_extra_select is True
+    assert compiler.col_count == 1
+    assert sql.startswith("SELECT col0, col1::text FROM (SELECT DISTINCT ")
+    assert '"duration_probe"."elapsed" FROM ' in sql
+    assert sql.count("::text") == 1
+
+
+def test_duration_explain_wraps_complete_transport_query(backend, duration_model):
+    query = duration_model.objects.all().query
+    query.explain_info = ExplainInfo("JSON", {"verbose": True})
+    sql, _ = query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith("EXPLAIN (VERBOSE true, FORMAT JSON) SELECT col0, col1::text FROM (SELECT ")
+    assert "FROM (EXPLAIN " not in sql
+
+
+def test_duration_aggregate_result_cast_keeps_interval_arithmetic(backend, duration_model):
+    queryset = duration_model.objects.all()
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.fetchone.return_value = ("2 days 03:04:05",)
+    with patch.object(backend, "cursor", return_value=cursor):
+        # A slice forces Django's SQLAggregateCompiler/subquery path.
+        with patch.dict(connections._connections.__dict__, default=backend):
+            result = queryset[:2].aggregate(total=Sum("elapsed"))
+    assert result == {"total": timedelta(days=2, hours=3, minutes=4, seconds=5)}
+    sql = cursor.execute.call_args.args[0]
+    assert sql.startswith("SELECT col0::text FROM (SELECT SUM(")
+    assert 'SUM("__col1")' in sql
+    assert '"duration_probe"."elapsed" AS "__col1"' in sql
+
+
+def test_duration_returning_cast_preserves_null_and_field_conversion(backend, duration_model):
+    field = duration_model._meta.get_field("elapsed")
+    sql, params = backend.ops.return_insert_columns([duration_model._meta.pk, field])
+    assert sql == 'RETURNING "duration_probe"."id", "duration_probe"."elapsed"::text'
+    assert params == ()
+    assert backend.ops.convert_duration("2 days 03:04:05", None, backend) == timedelta(
+        days=2, hours=3, minutes=4, seconds=5,
+    )
+    assert backend.ops.convert_duration(None, None, backend) is None
 
 
 @pytest.mark.parametrize("alias,label,count", [("default", "catalog", 3), ("checkout", "checkout", 2)])
