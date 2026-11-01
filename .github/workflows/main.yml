@@ -1,6 +1,13 @@
 name: Java Frameworks Integration Tests
 
 on:
+  workflow_dispatch:
+    inputs:
+      ojp_branch:
+        description: 'OJP branch to build and test'
+        required: true
+        default: main
+        type: string
   push:
     branches:
       - main
@@ -22,9 +29,9 @@ jobs:
       - name: Checkout OJP repository
         uses: actions/checkout@v5
         with:
-          repository: Open-JDBC-Proxy/ojp
+          repository: Open-J-Proxy/ojp
           fetch-depth: 0
-          ref: main
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ojp_branch || 'main' }}
           path: ojp
 
       - name: Set up JDK 25
