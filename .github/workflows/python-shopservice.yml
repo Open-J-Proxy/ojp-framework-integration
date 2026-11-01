@@ -1,6 +1,13 @@
 name: Python SQLAlchemy ShopService Integration Tests
 
 on:
+  workflow_dispatch:
+    inputs:
+      ojp_branch:
+        description: 'OJP branch to build and test'
+        required: true
+        default: main
+        type: string
   push:
     branches:
       - main
@@ -33,8 +40,8 @@ jobs:
       - name: Checkout OJP repository
         uses: actions/checkout@v5
         with:
-          repository: Open-JDBC-Proxy/ojp
-          ref: main
+          repository: Open-J-Proxy/ojp
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ojp_branch || 'main' }}
           path: ojp
 
       - name: Set up JDK 25
