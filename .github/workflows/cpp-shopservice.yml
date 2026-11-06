@@ -110,7 +110,16 @@ jobs:
 
       - name: Run 3 OJP servers (ports 1059, 1060, 1061)
         run: |
-          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          OJP_JAR=$(find ojp-server/target -maxdepth 1 -type f \
+            \( -name 'ojp-server-*-shaded.jar' -o -name 'ojp-server-[0-9]*.jar' \) \
+            ! -name '*-original.jar' \
+            ! -name '*-sources.jar' \
+            ! -name '*-javadoc.jar' \
+            -print -quit)
+          if [ -z "$OJP_JAR" ]; then
+            echo "ERROR: OJP server JAR not found in ojp-server/target"
+            exit 1
+          fi
           java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9159 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
           java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9160 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
