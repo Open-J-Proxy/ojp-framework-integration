@@ -6,8 +6,10 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 import pytest
+from django.apps.registry import Apps
 from django.core.management import call_command
 from django.db import IntegrityError, connections, models, transaction
+from django.db.migrations.state import ModelState
 from django.test.utils import isolate_apps
 
 
@@ -116,7 +118,9 @@ def test_live_schema_editor_create_alter_constraints_index_rename_drop(schema_ta
         editor.remove_index(model, index)
         editor.remove_field(model, changed)
         editor.alter_db_table(model, model._meta.db_table, renamed)
-    model._meta.db_table = renamed
+    state = ModelState.from_model(model)
+    state.options["db_table"] = renamed
+    model = state.render(Apps())
     assert check.name not in constraints(connection, renamed)
     assert index.name not in constraints(connection, renamed)
     assert model.objects.using(alias).get().label == "before"
@@ -154,6 +158,12 @@ def test_live_typed_orm_round_trip_and_description(schema_table):
         "elapsed": timedelta(days=2, hours=3, minutes=4, seconds=5),
     }
     saved = model.objects.using(connection.alias).create(**values)
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'SELECT "clock"::text FROM {connection.ops.quote_name(model._meta.db_table)} WHERE "id" = %s',
+            [saved.pk],
+        )
+        assert cursor.fetchone() == ("10:30:00.123456",)
     loaded = model.objects.using(connection.alias).get(pk=saved.pk)
     assert isinstance(saved.pk, int)
     for name, expected in values.items():

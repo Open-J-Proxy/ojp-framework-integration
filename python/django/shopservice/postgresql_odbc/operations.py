@@ -26,10 +26,10 @@ class DatabaseOperations(PostgreSQLOperations):
 
     def return_insert_columns(self, fields):
         sql, params = super().return_insert_columns(fields)
-        if any(field.get_internal_type() == "DurationField" for field in fields):
+        if any(field.get_internal_type() in {"DurationField", "TimeField"} for field in fields):
             columns = [
                 f"{self.quote_name(field.model._meta.db_table)}.{self.quote_name(field.column)}"
-                + ("::text" if field.get_internal_type() == "DurationField" else "")
+                + ("::text" if field.get_internal_type() in {"DurationField", "TimeField"} else "")
                 for field in fields
             ]
             sql = "RETURNING " + ", ".join(columns)

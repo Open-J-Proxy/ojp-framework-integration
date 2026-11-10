@@ -15,7 +15,7 @@ from django.db.models.expressions import ColPairs
 _compiling = ContextVar("postgresql_odbc_compiling", default=False)
 
 
-class IntervalResultsMixin:
+class TextTemporalResultsMixin:
     def as_sql(self, *args, **kwargs):
         outermost = not _compiling.get() and not self.query.subquery
         token = _compiling.set(True)
@@ -41,15 +41,15 @@ class IntervalResultsMixin:
             )
         ]
         if any(
-            expression.output_field.get_internal_type() == "DurationField"
+            expression.output_field.get_internal_type() in {"DurationField", "TimeField"}
             for expression in expressions
         ):
             # Normalize only the final results. Casting inside the original
-            # query would change interval ordering, DISTINCT and arithmetic.
+            # query would change temporal ordering, DISTINCT and arithmetic.
             aliases = [f"col{index}" for index in range(len(expressions))]
             columns = [
                 f"{alias}::text"
-                if expression.output_field.get_internal_type() == "DurationField" else alias
+                if expression.output_field.get_internal_type() in {"DurationField", "TimeField"} else alias
                 for alias, expression in zip(aliases, expressions)
             ]
             explain_prefix = ""
@@ -63,13 +63,13 @@ class IntervalResultsMixin:
         return sql, params
 
 
-class SQLCompiler(IntervalResultsMixin, PostgreSQLCompiler):
+class SQLCompiler(TextTemporalResultsMixin, PostgreSQLCompiler):
     def get_extra_select(self, order_by, select):
         self._odbc_extra_select = super().get_extra_select(order_by, select)
         return self._odbc_extra_select
 
 
-class SQLAggregateCompiler(IntervalResultsMixin, PostgreSQLAggregateCompiler):
+class SQLAggregateCompiler(TextTemporalResultsMixin, PostgreSQLAggregateCompiler):
     pass
 
 

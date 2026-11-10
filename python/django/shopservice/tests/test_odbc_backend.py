@@ -9,6 +9,7 @@ from uuid import UUID
 
 import pyodbc
 import pytest
+from django.apps.registry import Apps
 from django.conf import settings
 from django.db import NotSupportedError, connections
 from django.db.backends.postgresql.base import DatabaseWrapper as PostgreSQLWrapper
@@ -21,7 +22,7 @@ from django.db.backends.postgresql.operations import DatabaseOperations as Postg
 from django.db.backends.postgresql.schema import DatabaseSchemaEditor as PostgreSQLSchemaEditor
 from django.db.backends.utils import CursorDebugWrapper
 from django.db.migrations.loader import MigrationLoader
-from django.db.migrations.state import ProjectState
+from django.db.migrations.state import ModelState, ProjectState
 from django.db import models
 from django.db.models import Max, Min, Subquery, Sum, Value
 from django.db.models.functions import Greatest, Least
@@ -802,6 +803,88 @@ def test_duration_returning_cast_preserves_null_and_field_conversion(backend, du
         days=2, hours=3, minutes=4, seconds=5,
     )
     assert backend.ops.convert_duration(None, None, backend) is None
+
+
+@isolate_apps()
+def test_renamed_migration_model_rebuilds_cached_column_aliases(backend):
+    class Probe(models.Model):
+        label = models.CharField(max_length=32)
+
+        class Meta:
+            app_label = "odbc_contract"
+            db_table = "before_rename"
+
+    original_sql, _ = Probe.objects.all().query.get_compiler(connection=backend).as_sql()
+    assert '"before_rename"."label"' in original_sql
+    state = ModelState.from_model(Probe)
+    state.options["db_table"] = "after_rename"
+    renamed = state.render(Apps())
+    sql, _ = renamed.objects.all().query.get_compiler(connection=backend).as_sql()
+    assert "before_rename" not in sql
+    assert '"after_rename"."label"' in sql
+    assert 'FROM "after_rename"' in sql
+
+
+@pytest.fixture
+def time_model():
+    with isolate_apps():
+        class TimeProbe(models.Model):
+            clock = models.TimeField(null=True)
+
+            class Meta:
+                app_label = "odbc_contract"
+                db_table = "time_probe"
+
+        yield TimeProbe
+
+
+def test_time_result_text_preserves_microseconds_without_changing_parameters(backend, time_model):
+    expected = time(10, 30, 0, 123456)
+    queryset = time_model.objects.filter(clock__gte=expected).values_list("clock", flat=True).order_by("clock")
+    sql, params = queryset.query.get_compiler(connection=backend).as_sql()
+    assert sql.startswith("SELECT col0::text FROM (SELECT ")
+    assert 'WHERE "time_probe"."clock" >= %s' in sql
+    assert params == (expected,)
+    raw_cursor = Mock()
+    CursorWrapper(raw_cursor, backend).execute(sql, params)
+    assert raw_cursor.execute.call_args.args[1] == ("10:30:00.123456",)
+    cursor = MagicMock()
+    cursor.fetchmany.side_effect = [[("10:30:00.123456",), (None,)], []]
+    with patch.object(backend, "cursor", return_value=cursor):
+        with patch.dict(connections._connections.__dict__, default=backend):
+            assert list(queryset) == [expected, None]
+
+
+def test_time_subquery_and_aggregate_keep_native_types(backend, time_model):
+    inner = time_model.objects.values("clock")[:1]
+    query = time_model.objects.annotate(copy=Subquery(inner)).query
+    sql, _ = query.get_compiler(connection=backend).as_sql()
+    assert '(SELECT U0."clock" AS "clock" FROM "time_probe" U0 LIMIT 1)' in sql
+    assert sql.startswith("SELECT col0, col1::text, col2::text FROM (SELECT ")
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.fetchone.return_value = ("10:30:00.123456",)
+    with patch.object(backend, "cursor", return_value=cursor):
+        with patch.dict(connections._connections.__dict__, default=backend):
+            result = time_model.objects.all()[:2].aggregate(latest=Max("clock"))
+    assert result == {"latest": time(10, 30, 0, 123456)}
+    assert cursor.execute.call_args.args[0].startswith("SELECT col0::text FROM (SELECT MAX(")
+
+
+def test_time_returning_uses_text_and_existing_time_converter(backend, time_model):
+    field = time_model._meta.get_field("clock")
+    expected = time(10, 30, 0, 123456)
+    query = InsertQuery(time_model)
+    query.insert_values([field], [time_model(clock=expected)])
+    cursor = MagicMock()
+    cursor.__enter__.return_value = cursor
+    cursor.fetchone.return_value = ("1", "10:30:00.123456")
+    with patch.object(backend, "cursor", return_value=cursor):
+        result = query.get_compiler(connection=backend).execute_sql([time_model._meta.pk, field])
+    assert result == [[1, expected]]
+    assert cursor.execute.call_args.args[0].endswith(
+        'RETURNING "time_probe"."id", "time_probe"."clock"::text'
+    )
 
 
 @pytest.mark.parametrize("alias,label,count", [("default", "catalog", 3), ("checkout", "checkout", 2)])

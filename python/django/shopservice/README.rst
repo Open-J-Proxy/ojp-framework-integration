@@ -102,6 +102,9 @@ decoded separately. ORM interval results (including aggregates and
 ``RETURNING``) are also projected as text because OJP cannot serialize JDBC
 ``PGInterval`` objects. Filtering, arithmetic and subqueries retain native
 interval types; raw SQL callers must cast interval results explicitly.
+``TimeField`` results also use text projections to preserve microseconds that
+the JDBC/ODBC time representation would otherwise discard. Time parameters,
+comparisons and inner queries retain their native values.
 PostgreSQL's ``?``, ``?|`` and ``?&``
 operators conflict with ODBC bind markers; use ``jsonb_exists``,
 ``jsonb_exists_any`` and ``jsonb_exists_all`` functions instead. Ordinary
