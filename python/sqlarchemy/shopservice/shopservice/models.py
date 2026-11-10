@@ -29,6 +29,16 @@ class Timestamp(TypeDecorator):
         return value
 
 
+class Identifier(TypeDecorator):
+    """BIGINT identifiers, including OUTPUT values, may arrive as text from OJP."""
+
+    impl = BigInteger
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        return int(value) if isinstance(value, str) else value
+
+
 class CatalogBase(DeclarativeBase):
     """Entities stored in the catalog database."""
 
@@ -43,7 +53,7 @@ class CheckoutBase(DeclarativeBase):
 class User(CatalogBase):
     __tablename__ = "py_users"
 
-    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    id: Mapped[int] = mapped_column(Identifier(), Identity(start=1, increment=1), primary_key=True)
     username: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(Timestamp(), nullable=True)
@@ -52,7 +62,7 @@ class User(CatalogBase):
 class Product(CatalogBase):
     __tablename__ = "py_products"
 
-    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
+    id: Mapped[int] = mapped_column(Identifier(), Identity(start=1, increment=1), primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     price: Mapped[Decimal] = mapped_column(Numeric(19, 2, asdecimal=True), nullable=False)
 
@@ -60,9 +70,9 @@ class Product(CatalogBase):
 class Review(CatalogBase):
     __tablename__ = "py_reviews"
 
-    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("py_users.id"), nullable=False)
-    product_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("py_products.id"), nullable=False)
+    id: Mapped[int] = mapped_column(Identifier(), Identity(start=1, increment=1), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Identifier(), ForeignKey("py_users.id"), nullable=False)
+    product_id: Mapped[int] = mapped_column(Identifier(), ForeignKey("py_products.id"), nullable=False)
     rating: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     comment: Mapped[Optional[str]] = mapped_column(UnicodeText, nullable=True)
 
@@ -76,8 +86,8 @@ class Review(CatalogBase):
 class Order(CheckoutBase):
     __tablename__ = "py_orders"
 
-    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    id: Mapped[int] = mapped_column(Identifier(), Identity(start=1, increment=1), primary_key=True)
+    user_id: Mapped[int] = mapped_column(Identifier(), nullable=False)
     order_date: Mapped[Optional[datetime]] = mapped_column(
         Timestamp(), nullable=True, default=datetime.now, server_default=func.sysdatetime()
     )
@@ -94,9 +104,9 @@ class Order(CheckoutBase):
 class OrderItem(CheckoutBase):
     __tablename__ = "py_order_items"
 
-    id: Mapped[int] = mapped_column(BigInteger, Identity(start=1, increment=1), primary_key=True)
-    order_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("py_orders.id", ondelete="CASCADE"), nullable=False)
-    product_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    id: Mapped[int] = mapped_column(Identifier(), Identity(start=1, increment=1), primary_key=True)
+    order_id: Mapped[int] = mapped_column(Identifier(), ForeignKey("py_orders.id", ondelete="CASCADE"), nullable=False)
+    product_id: Mapped[int] = mapped_column(Identifier(), nullable=False)
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     order: Mapped[Optional[Order]] = relationship(back_populates="order_items", lazy="select")
