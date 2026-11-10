@@ -111,7 +111,22 @@ jobs:
 
       - name: Run 3 OJP servers (ports 1059, 1060, 1061)
         run: |
-          OJP_JAR=$(ls ojp-server/target/ojp-server-*-shaded.jar | head -1)
+          shopt -s nullglob
+          OJP_JARS=(ojp-server/target/ojp-server-*-shaded.jar)
+          if [ "${#OJP_JARS[@]}" -eq 0 ]; then
+            for jar in ojp-server/target/ojp-server-*.jar; do
+              case "$jar" in
+                *-sources.jar|*-javadoc.jar|*-tests.jar) continue ;;
+              esac
+              OJP_JARS+=("$jar")
+            done
+          fi
+          if [ "${#OJP_JARS[@]}" -ne 1 ]; then
+            echo "Expected exactly one executable OJP server jar; found ${#OJP_JARS[@]}"
+            exit 1
+          fi
+          OJP_JAR="${OJP_JARS[0]}"
+          echo "Starting OJP servers with $OJP_JAR"
           java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1059 -Dojp.prometheus.port=9159 -jar "$OJP_JAR" > /tmp/ojp-server-1.log 2>&1 &
           echo $! > /tmp/ojp-server-1.pid
           java -Duser.timezone=UTC -Dojp.libs.path=./ojp-libs -Dojp.server.port=1060 -Dojp.prometheus.port=9160 -jar "$OJP_JAR" > /tmp/ojp-server-2.log 2>&1 &
