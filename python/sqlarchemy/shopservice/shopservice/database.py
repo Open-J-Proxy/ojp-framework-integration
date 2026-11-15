@@ -6,13 +6,23 @@ from dataclasses import dataclass
 
 import pyodbc
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.dialects.mssql.pyodbc import MSDialect_pyodbc
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from .config import DatabaseConfig, is_valid_database_name
 from .models import CatalogBase, CheckoutBase
 
-_SQL_AUTOCOMMIT_OFF = 0
+
+class _OJPExecutionContext(MSDialect_pyodbc.execution_ctx_cls):
+    def fetchall_for_returning(self, cursor):
+        rows = super().fetchall_for_returning(cursor)
+        imv = self.compiled._insertmanyvalues
+        if imv is not None and imv.implicit_sentinel:
+            # SQLAlchemy sorts this identity sentinel before applying result processors.
+            # OJP's character metadata would otherwise sort "10" before "9".
+            return [tuple(row[:-1]) + (int(row[-1]),) for row in rows]
+        return rows
 
 
 @dataclass
@@ -30,25 +40,12 @@ class Databases:
 def _engine(config: DatabaseConfig, database: str, *, autocommit: bool = False) -> Engine:
     # The OJP server owns the database connection pools, so the client must not pool: NullPool opens a
     # connection per unit of work and really closes it afterwards.
-    #
-    # The OJP ODBC driver exports SQLDriverConnectW, so unixODBC treats it as a Unicode driver and only
-    # forwards post-connect SQLSetConnectAttr calls to SQLSetConnectAttrW, which the driver does not
-    # implement. pyodbc is therefore told the connection is in autocommit mode (so it never toggles the
-    # attribute after connecting), while manual-commit mode is requested through attrs_before, which the
-    # Driver Manager applies during connect. commit()/rollback() still reach the driver's SQLEndTran.
-    attrs_before = {} if autocommit else {pyodbc.SQL_ATTR_AUTOCOMMIT: _SQL_AUTOCOMMIT_OFF}
     engine = create_engine(
         config.url(database),
         poolclass=NullPool,
-        connect_args={"autocommit": True, "attrs_before": attrs_before},
-        use_scope_identity=False,
+        connect_args={"autocommit": autocommit},
     )
-    # The OJP server runs INSERT/UPDATE/DELETE as JDBC updates, which reject result sets, so OUTPUT/RETURNING
-    # is disabled and generated IDs are fetched with a follow-up SELECT.
-    engine.dialect.insert_returning = False
-    engine.dialect.update_returning = False
-    engine.dialect.delete_returning = False
-    engine.dialect.use_insertmanyvalues = False
+    engine.dialect.execution_ctx_cls = _OJPExecutionContext
     return engine
 
 

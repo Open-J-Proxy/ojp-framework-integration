@@ -19,7 +19,9 @@ def test_user_save_all(repos):
     saved = repos.users.save_all([new_user("alice", "alice@example.com"), new_user("bob", "bob@example.com")])
 
     assert len(saved) == 2
-    assert all(u.id is not None for u in saved)
+    assert all(type(u.id) is int for u in saved)
+    assert len({u.id for u in saved}) == len(saved)
+    assert [repos.users.find_by_id(u.id).username for u in saved] == ["alice", "bob"]
 
 
 def test_user_find_all(repos):
@@ -48,7 +50,9 @@ def test_product_save_all(repos):
     saved = repos.products.save_all([new_product("Widget", "9.99"), new_product("Gadget", "19.99")])
 
     assert len(saved) == 2
-    assert all(p.id is not None for p in saved)
+    assert all(type(p.id) is int for p in saved)
+    assert len({p.id for p in saved}) == len(saved)
+    assert [repos.products.find_by_id(p.id).name for p in saved] == ["Widget", "Gadget"]
 
 
 def test_product_find_all(repos):
@@ -80,7 +84,15 @@ def test_review_save_all(repos):
     saved = repos.reviews.save_all([new_review(u, p, 5, "Excellent!"), new_review(u, p, 3, "Average")])
 
     assert len(saved) == 2
-    assert all(r.id is not None for r in saved)
+    assert all(type(r.id) is int for r in saved)
+    assert len({r.id for r in saved}) == len(saved)
+    loaded = [repos.reviews.find_by_id(r.id) for r in saved]
+    assert [r.comment for r in loaded] == ["Excellent!", "Average"]
+    for review in loaded:
+        assert type(review.user_id) is int
+        assert type(review.product_id) is int
+        assert review.user_id == review.user.id == u.id
+        assert review.product_id == review.product.id == p.id
 
 
 def test_review_find_all(repos):
