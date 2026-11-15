@@ -73,10 +73,12 @@ compiler's array-binding ``UNNEST`` optimization is replaced with ordinary
 result-producing DML; returned IDs,
 decimals and timestamps use the same text-result converters as SELECT.
 No follow-up identity query or insert-only transaction wrapper is needed.
-Repository transactions still keep multi-write operations atomic. Autocommit transitions
-reconnect using pre-connect ODBC attributes because the driver lacks
-``SQLSetConnectAttrW``. ORM query results are buffered before iteration; do not
-hold raw cursors open across transaction-mode changes. Django persistent connections and pyodbc
+Repository transactions still keep multi-write operations atomic. Use an OJP
+ODBC driver including `OJP #774 <https://github.com/Open-J-Proxy/ojp/pull/774>`_.
+Autocommit changes use ``connection.autocommit`` on the existing connection,
+without reconnecting. Enabling autocommit commits any pending transaction;
+explicit ``commit()``/``rollback()`` leave manual mode enabled.
+ORM query results are buffered before iteration. Django persistent connections and pyodbc
 pooling are disabled: connections are scoped to a request, while OJP owns
 server-side pooling. For deployment, set ``DJANGO_SECRET_KEY`` and
 ``DJANGO_ALLOWED_HOSTS`` (comma-separated); debug defaults to off. The sample
@@ -118,16 +120,16 @@ expected-failure declaration is retained.
 
 OJP may lease different backend sessions between autocommit statements. Configure
 the PostgreSQL database/role timezone to match Django (UTC for this sample);
-session settings cannot be assumed to survive outside a transaction. Changing
-autocommit reconnects, so temporary tables and other session-local state do not
-survive those transitions. External ``psql``/``pg_dump`` tools do not speak ODBC
+session settings and temporary tables cannot be assumed to survive outside a
+transaction, even though changing autocommit no longer reconnects.
+External ``psql``/``pg_dump`` tools do not speak ODBC
 and must not be used as a hidden direct-connection fallback; ``dbshell`` is
 disabled.
 
-OJP driver workarounds remain explicit: autocommit transitions reconnect,
-savepoint names use validated unquoted identifiers, and transport metadata/type
+OJP driver workarounds remain explicit: savepoint names use validated unquoted
+identifiers, and transport metadata/type
 conversion needs special handling. These can be simplified once the driver
-supports Unicode connection attributes, quoted savepoints and authoritative
+supports quoted savepoints and authoritative
 result metadata. Driver improvements belong in the OJP repository, not this
 application.
 

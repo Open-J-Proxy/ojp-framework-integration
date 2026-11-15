@@ -55,6 +55,48 @@ def constraints(connection, table):
         return connection.introspection.get_constraints(cursor, table)
 
 
+def test_live_autocommit_switching_preserves_handle_and_transaction_semantics(schema_table):
+    connection, model, _ = schema_table
+    with connection.schema_editor() as editor:
+        editor.create_model(model)
+    original = connection.connection
+    table = connection.ops.quote_name(model._meta.db_table)
+    observer = connection.copy(alias=f"{connection.alias}_observer")
+
+    def count_rows():
+        with observer.cursor() as cursor:
+            cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            return int(cursor.fetchone()[0])
+
+    try:
+        with connection.cursor() as cursor:
+            sql = f'INSERT INTO {table} ("label", "amount", "enabled") VALUES (%s, %s, %s)'
+            connection.set_autocommit(False)
+            cursor.execute(sql, ["rolled_back", 1, True])
+            assert count_rows() == 0
+            connection.rollback()
+            assert original.autocommit is False
+            assert count_rows() == 0
+
+            cursor.execute(sql, ["committed", 2, True])
+            connection.commit()
+            assert original.autocommit is False
+            assert count_rows() == 1
+
+            cursor.execute(sql, ["implicit_commit", 3, True])
+            connection.set_autocommit(True)
+            assert original.autocommit is True
+            assert count_rows() == 2
+            assert connection.connection is original
+            cursor.execute(sql, ["autocommitted", 4, True])
+            assert count_rows() == 3
+    finally:
+        observer.close()
+        if not connection.get_autocommit():
+            connection.rollback()
+            connection.set_autocommit(True)
+
+
 def test_live_schema_editor_create_alter_constraints_index_rename_drop(schema_table):
     connection, model, renamed = schema_table
     alias = connection.alias

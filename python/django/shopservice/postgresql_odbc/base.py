@@ -196,17 +196,6 @@ class DatabaseWrapper(PostgreSQLWrapper):
             )
         }
 
-    def _connect(self, params, autocommit):
-        # OJP currently lacks SQLSetConnectAttrW. Set the real mode before
-        # connecting while pyodbc believes it is already in autocommit mode.
-        pyodbc.pooling = False
-        return pyodbc.connect(
-            params["connection_string"],
-            autocommit=True,
-            attrs_before={} if autocommit else {pyodbc.SQL_ATTR_AUTOCOMMIT: 0},
-            timeout=self.settings_dict["OPTIONS"].get("timeout", 15),
-        )
-
     @async_unsafe
     def get_new_connection(self, conn_params):
         if any(app.startswith("django.contrib.postgres") for app in settings.INSTALLED_APPS):
@@ -216,8 +205,12 @@ class DatabaseWrapper(PostgreSQLWrapper):
                 stacklevel=2,
             )
             raise NotSupportedError("Remove django.contrib.postgres; its psycopg hooks cannot use pyodbc")
-        self._odbc_autocommit = True
-        return self._connect(conn_params, True)
+        pyodbc.pooling = False
+        return pyodbc.connect(
+            conn_params["connection_string"],
+            autocommit=self.settings_dict["AUTOCOMMIT"],
+            timeout=self.settings_dict["OPTIONS"].get("timeout", 15),
+        )
 
     def init_connection_state(self):
         BaseDatabaseWrapper.init_connection_state(self)
@@ -225,8 +218,7 @@ class DatabaseWrapper(PostgreSQLWrapper):
         warnings.warn(
             "OJP may lease different PostgreSQL sessions between autocommit statements. "
             "Set the server/database/role timezone to the Django connection timezone; "
-            "session SET state is guaranteed only inside a transaction. Autocommit "
-            "transitions reconnect, discarding temporary tables and other session state.",
+            "session SET state is guaranteed only inside a transaction.",
             RuntimeWarning,
             stacklevel=2,
         )
@@ -247,25 +239,8 @@ class DatabaseWrapper(PostgreSQLWrapper):
         return self._configure_timezone(self.connection)
 
     def _set_autocommit(self, autocommit):
-        if self._odbc_autocommit == autocommit:
-            return
-        connection = self._connect(self.get_connection_params(), autocommit)
-        try:
-            # Reapply the same configuration in either mode. A transaction's
-            # SET must stay on its leased session: don't commit before atomic().
-            self._configure_timezone(connection)
-        except Exception:
-            connection.close()
-            raise
-        try:
-            self.connection.close()
-        except Exception:
-            # The old handle may be half-closed; force Django to reconnect.
-            self.connection = None
-            connection.close()
-            raise
-        self.connection = connection
-        self._odbc_autocommit = autocommit
+        with self.wrap_database_errors:
+            self.connection.autocommit = autocommit
 
     @async_unsafe
     def create_cursor(self, name=None):

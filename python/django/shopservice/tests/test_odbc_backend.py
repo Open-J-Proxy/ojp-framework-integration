@@ -4,14 +4,14 @@ from copy import deepcopy
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from types import SimpleNamespace
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 from uuid import UUID
 
 import pyodbc
 import pytest
 from django.apps.registry import Apps
 from django.conf import settings
-from django.db import NotSupportedError, connections
+from django.db import DatabaseError, NotSupportedError, connections, transaction
 from django.db.backends.postgresql.base import DatabaseWrapper as PostgreSQLWrapper
 from django.db.backends.postgresql.client import DatabaseClient as PostgreSQLClient
 from django.db.backends.postgresql.creation import DatabaseCreation as PostgreSQLCreation
@@ -38,7 +38,7 @@ from shopservice.models import Order, Product, User
 
 @pytest.fixture
 def backend():
-    return DatabaseWrapper(deepcopy(settings.DATABASES["default"]), alias="default")
+    return DatabaseWrapper(deepcopy(connections["default"].settings_dict), alias="default")
 
 
 def test_backend_reuses_postgresql_components_and_type_maps(backend):
@@ -265,90 +265,74 @@ def test_json_operator_after_quoted_question_mark_is_still_rejected(backend):
     raw_cursor.execute.assert_not_called()
 
 
-def test_new_connection_disables_pooling_and_sets_mode_before_connect(backend):
+@pytest.mark.parametrize("autocommit", [False, True])
+def test_new_connection_disables_pooling_and_passes_requested_mode(backend, autocommit):
     raw_connection = Mock()
     params = backend.get_connection_params()
+    backend.settings_dict["AUTOCOMMIT"] = autocommit
     with patch("postgresql_odbc.base.pyodbc.connect", return_value=raw_connection) as connect:
         assert backend.get_new_connection(params) is raw_connection
     connect.assert_called_once_with(
-        params["connection_string"], autocommit=True, attrs_before={}, timeout=15,
+        params["connection_string"], autocommit=autocommit, timeout=15,
     )
-    assert backend._odbc_autocommit is True
     assert pyodbc.pooling is False
 
 
-def test_autocommit_transitions_reconnect_with_preconnect_attributes(backend):
-    old_connection, transactional, restored = Mock(), Mock(), Mock()
-    transactional.cursor.return_value.fetchone.return_value = (backend.timezone_name,)
-    restored.cursor.return_value.fetchone.return_value = (backend.timezone_name,)
-    backend.connection = old_connection
-    backend._odbc_autocommit = True
-    with patch("postgresql_odbc.base.pyodbc.connect", side_effect=[transactional, restored]) as connect:
-        backend._set_autocommit(False)
-        assert backend.connection is transactional
-        assert backend._odbc_autocommit is False
-        old_connection.close.assert_called_once_with()
-        assert connect.call_args.kwargs == {
-            "autocommit": True, "attrs_before": {pyodbc.SQL_ATTR_AUTOCOMMIT: 0}, "timeout": 15,
-        }
-        backend._set_autocommit(False)
-        assert connect.call_count == 1
-        backend._set_autocommit(True)
-        assert backend.connection is restored
-        assert backend._odbc_autocommit is True
-        transactional.close.assert_called_once_with()
-        assert connect.call_args.kwargs["attrs_before"] == {}
-        assert connect.call_count == 2
-    assert "autocommit" not in old_connection.__dict__
-    assert "autocommit" not in transactional.__dict__
-
-
-def test_failed_autocommit_reconnect_preserves_existing_connection(backend):
-    old_connection = Mock()
-    backend.connection = old_connection
-    backend._odbc_autocommit = True
-    with patch("postgresql_odbc.base.pyodbc.connect", side_effect=pyodbc.Error("connect failed")):
-        with pytest.raises(pyodbc.Error):
-            backend._set_autocommit(False)
-    assert backend.connection is old_connection
-    assert backend._odbc_autocommit is True
-    old_connection.close.assert_not_called()
-
-
-def test_failed_transaction_timezone_setup_closes_candidate_and_preserves_state(backend):
-    old_connection, candidate = Mock(), Mock()
-    backend.connection = old_connection
-    backend._odbc_autocommit = True
-    with patch.object(backend, "_connect", return_value=candidate):
-        with patch.object(backend, "_configure_timezone", side_effect=pyodbc.Error("timezone failed")):
-            with pytest.raises(pyodbc.Error, match="timezone failed"):
-                backend._set_autocommit(False)
-    candidate.close.assert_called_once_with()
-    old_connection.close.assert_not_called()
-    assert backend.connection is old_connection
-    assert backend._odbc_autocommit is True
+def test_autocommit_transitions_use_same_connection_without_reinitializing(backend):
+    raw_connection = Mock(autocommit=True)
+    backend.connection = raw_connection
+    with patch("postgresql_odbc.base.pyodbc.connect") as connect:
+        with patch.object(backend, "_configure_timezone") as configure:
+            for mode in (False, False, True, True, False, True):
+                backend.set_autocommit(mode)
+                assert raw_connection.autocommit is mode
+                assert backend.get_autocommit() is mode
+                assert backend.connection is raw_connection
+    connect.assert_not_called()
+    configure.assert_not_called()
+    raw_connection.close.assert_not_called()
+    raw_connection.commit.assert_not_called()
+    raw_connection.rollback.assert_not_called()
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
-def test_failed_old_connection_close_discards_both_handles_without_switching_mode(backend, autocommit):
-    old_connection, candidate = Mock(), Mock()
-    old_connection.close.side_effect = pyodbc.Error("old connection close failed")
-    backend.connection = old_connection
-    backend._odbc_autocommit = not autocommit
-    with patch.object(backend, "_connect", return_value=candidate):
-        with patch.object(backend, "_configure_timezone") as configure:
-            with pytest.raises(pyodbc.Error, match="old connection close failed"):
-                backend._set_autocommit(autocommit)
-    configure.assert_called_once_with(candidate)
-    candidate.close.assert_called_once_with()
-    assert backend.connection is None
-    assert backend._odbc_autocommit is not autocommit
+def test_failed_autocommit_change_preserves_connection_and_django_state(backend, autocommit):
+    raw_connection = Mock()
+    backend.connection = raw_connection
+    backend.autocommit = not autocommit
+    with patch.object(type(raw_connection), "autocommit", new_callable=PropertyMock, create=True) as mode:
+        mode.side_effect = pyodbc.DatabaseError("mode change failed")
+        with patch("postgresql_odbc.base.pyodbc.connect") as connect:
+            with pytest.raises(DatabaseError, match="mode change failed"):
+                backend.set_autocommit(autocommit)
+        mode.assert_called_once_with(autocommit)
+    assert backend.connection is raw_connection
+    assert backend.autocommit is not autocommit
+    raw_connection.close.assert_not_called()
+    connect.assert_not_called()
+
+
+def test_enabling_autocommit_runs_django_commit_hooks_on_same_connection(backend):
+    raw_connection = Mock(autocommit=True)
+    backend.connection = raw_connection
+    backend.autocommit = True
+    hook = Mock()
+    with patch.dict(connections._connections.__dict__, default=backend):
+        with transaction.atomic():
+            backend.on_commit(hook)
+            assert raw_connection.autocommit is False
+            hook.assert_not_called()
+    hook.assert_called_once_with()
+    raw_connection.commit.assert_called_once_with()
+    assert raw_connection.autocommit is True
+    assert backend.connection is raw_connection
+    assert backend.run_on_commit == []
 
 
 def test_commit_and_rollback_use_odbc_and_reset_django_transaction_state(backend):
     raw_connection = Mock()
     backend.connection = raw_connection
-    backend._odbc_autocommit = False
+    raw_connection.autocommit = False
     backend.errors_occurred = True
     backend.commit()
     raw_connection.commit.assert_called_once_with()
@@ -361,8 +345,7 @@ def test_commit_and_rollback_use_odbc_and_reset_django_transaction_state(backend
     assert backend.needs_rollback is False
     assert backend.run_on_commit == []
     assert backend.connection is raw_connection
-    assert backend._odbc_autocommit is False
-    assert "autocommit" not in raw_connection.__dict__
+    assert raw_connection.autocommit is False
 
 
 def test_version_is_read_through_odbc_and_cached(backend):
@@ -405,13 +388,14 @@ def test_initialization_propagates_odbc_session_errors(backend):
                 backend.init_connection_state()
 
 
-def test_initialization_warns_about_reconnect_session_state(backend):
+def test_initialization_still_warns_about_autocommit_session_state(backend):
     backend.pg_version = 150008
     backend.connection = Mock()
     with patch("django.db.backends.base.base.RAN_DB_VERSION_CHECK", set()):
         with patch.object(backend, "_configure_timezone") as configure:
-            with pytest.warns(RuntimeWarning, match="session state|session SET"):
+            with pytest.warns(RuntimeWarning, match="session SET") as recorded:
                 backend.init_connection_state()
+    assert "reconnect" not in str(recorded[0].message)
     configure.assert_called_once_with(backend.connection)
 
 
@@ -594,7 +578,7 @@ def test_cursor_executes_boolean_parameters_without_sqlserver_integer_coercion(b
     raw_cursor.execute.assert_called_once_with("SELECT ?::boolean, ?::boolean", ("true", "false"))
 
 
-def test_chunked_iterator_buffers_results_before_reconnect_can_invalidate_cursor(backend):
+def test_chunked_iterator_buffers_results_without_server_side_cursors(backend):
     assert backend.features.can_use_chunked_reads is False
     compiler = object.__new__(SQLCompiler)
     compiler.connection = backend

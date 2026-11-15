@@ -13,8 +13,6 @@ from sqlalchemy.pool import NullPool
 from .config import DatabaseConfig, is_valid_database_name
 from .models import CatalogBase, CheckoutBase
 
-_SQL_AUTOCOMMIT_OFF = 0
-
 
 class _OJPExecutionContext(MSDialect_pyodbc.execution_ctx_cls):
     def fetchall_for_returning(self, cursor):
@@ -42,17 +40,10 @@ class Databases:
 def _engine(config: DatabaseConfig, database: str, *, autocommit: bool = False) -> Engine:
     # The OJP server owns the database connection pools, so the client must not pool: NullPool opens a
     # connection per unit of work and really closes it afterwards.
-    #
-    # The OJP ODBC driver exports SQLDriverConnectW, so unixODBC treats it as a Unicode driver and only
-    # forwards post-connect SQLSetConnectAttr calls to SQLSetConnectAttrW, which the driver does not
-    # implement. pyodbc is therefore told the connection is in autocommit mode (so it never toggles the
-    # attribute after connecting), while manual-commit mode is requested through attrs_before, which the
-    # Driver Manager applies during connect. commit()/rollback() still reach the driver's SQLEndTran.
-    attrs_before = {} if autocommit else {pyodbc.SQL_ATTR_AUTOCOMMIT: _SQL_AUTOCOMMIT_OFF}
     engine = create_engine(
         config.url(database),
         poolclass=NullPool,
-        connect_args={"autocommit": True, "attrs_before": attrs_before},
+        connect_args={"autocommit": autocommit},
     )
     engine.dialect.execution_ctx_cls = _OJPExecutionContext
     return engine

@@ -38,7 +38,7 @@ The OJP ODBC driver has to be built from the [OJP repository](https://github.com
 How OJP constrains the client:
 
 - **No client-side pooling.** OJP owns the database connection pools, so the engines use `NullPool` and unixODBC pooling is turned off (`pyodbc.pooling = False`).
-- **Transactions.** unixODBC treats the OJP driver as a Unicode driver, so it only forwards connection attributes set after connect to `SQLSetConnectAttrW`, which the driver doesn't implement. Manual-commit mode is therefore requested through `attrs_before` during connect, and SQLAlchemy's `commit()`/`rollback()` still reach the driver's `SQLEndTran`.
+- **Transactions.** Use an OJP ODBC driver including [OJP #774](https://github.com/Open-J-Proxy/ojp/pull/774). Engines pass the requested `autocommit` mode directly to pyodbc: application sessions use manual transactions, while database creation uses autocommit. The pre-connect `attrs_before` workaround is no longer needed; SQLAlchemy's `commit()`/`rollback()` still reach the driver's `SQLEndTran`. OJP remains responsible for server-side pooling; client pooling stays disabled.
 - **Generated keys and returning rows.** SQLAlchemy uses SQL Server's native `OUTPUT inserted` for generated keys and INSERT/UPDATE returning rows, and `OUTPUT deleted` for DELETE returning rows. Its default batched inserts remain enabled.
 - **Text results.** The driver reports result columns as character data. Identifier columns convert these values to Python integers, including generated keys and foreign keys; ordered batch inserts also normalize the identity sentinel before SQLAlchemy sorts returned rows. `Numeric` values are converted back to `Decimal` by SQLAlchemy, and `DATETIME2` values are parsed by a small `Timestamp` type.
 

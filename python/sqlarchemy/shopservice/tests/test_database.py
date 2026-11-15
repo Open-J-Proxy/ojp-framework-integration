@@ -41,16 +41,15 @@ def test_engine_keeps_native_returning_defaults(engine):
 
 
 @pytest.mark.parametrize("autocommit", [False, True])
-def test_preconnect_transaction_attributes_are_preserved(autocommit):
+def test_requested_autocommit_mode_is_passed_to_pyodbc(autocommit):
     engine = _engine(DatabaseConfig(), "master", autocommit=autocommit)
     try:
-        expected = {} if autocommit else {pyodbc.SQL_ATTR_AUTOCOMMIT: 0}
         with pytest.MonkeyPatch.context() as patch:
             connect = Mock(side_effect=RuntimeError("offline connection"))
             patch.setattr(engine.dialect, "connect", connect)
             with pytest.raises(RuntimeError, match="offline connection"):
                 engine.raw_connection()
-            assert connect.call_args.kwargs == {"autocommit": True, "attrs_before": expected}
+            assert connect.call_args.kwargs == {"autocommit": autocommit}
     finally:
         engine.dispose()
 
