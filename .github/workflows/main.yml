@@ -158,16 +158,21 @@ jobs:
         working-directory: spring-boot-narayana
 
       - name: Show ojp-server logs
-        if: always()  # ensures it runs even if previous steps fail
+        if: failure()
         run: |
-          echo "=== OJP Server 1 (port 1059) ==="
-          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
-          echo ""
-          echo "=== OJP Server 2 (port 1060) ==="
-          cat /tmp/ojp-server-2.log || echo "/tmp/ojp-server-2.log not found"
-          echo ""
-          echo "=== OJP Server 3 (port 1061) ==="
-          cat /tmp/ojp-server-3.log || echo "/tmp/ojp-server-3.log not found"
+          for number in 1 2 3; do
+            log="/tmp/ojp-server-${number}.log"
+            echo "=== OJP Server ${number}: last 64 KiB ==="
+            if [ -f "$log" ]; then
+              python3 -c 'import os, sys
+          with open(sys.argv[1], "rb") as log:
+              log.seek(max(0, os.fstat(log.fileno()).st_size - 65536))
+              sys.stdout.buffer.write(log.read(65536))' "$log"
+            else
+              echo "$log not found"
+            fi
+            echo ""
+          done
 
       # ── Partial-cluster resilience run ─────────────────────────────────────
       # Goal: assess how each framework behaves when not all OJP servers are
@@ -175,6 +180,7 @@ jobs:
       # all integration tests, then tear down the single remaining server.
 
       - name: Kill all OJP servers
+        if: always()
         run: |
           for PID_FILE in /tmp/ojp-server-1.pid /tmp/ojp-server-2.pid /tmp/ojp-server-3.pid; do
             if [ -f "$PID_FILE" ]; then
@@ -186,6 +192,7 @@ jobs:
           sleep 3
 
       - name: Clear previous OJP server logs (partial-cluster run)
+        id: partial_logs_cleared
         run: rm -f /tmp/ojp-server-1.log /tmp/ojp-server-2.log /tmp/ojp-server-3.log
 
       - name: Set up JDK 25 for partial-cluster OJP server
@@ -220,40 +227,63 @@ jobs:
           java-version: '21'
 
       - name: "[Partial cluster] Run OJP GlassFish Integration tests (shopservice)"
+        id: partial_glassfish
         continue-on-error: true
         run: mvn clean verify
         working-directory: glassfish/shopservice
 
       - name: "[Partial cluster] Run OJP Micronaut Integration tests (shopservice)"
+        id: partial_micronaut
         continue-on-error: true
         run: mvn clean verify
         working-directory: micronaut/shopservice
 
       - name: "[Partial cluster] Run OJP Quarkus Integration tests (shopservice)"
+        id: partial_quarkus
         continue-on-error: true
         run: mvn clean verify
         working-directory: quarkus/shopservice
 
       - name: "[Partial cluster] Run OJP Spring Boot with Atomikos Integration tests"
+        id: partial_atomikos
         continue-on-error: true
         run: mvn clean verify
         working-directory: spring-boot-atomikos
 
       - name: "[Partial cluster] Run OJP Spring Boot with Narayana Integration tests"
+        id: partial_narayana
         continue-on-error: true
         run: mvn clean verify
         working-directory: spring-boot-narayana
 
       - name: "[Partial cluster] Run OJP Spring Boot Integration tests (shopservice)"
+        id: partial_spring_boot
         continue-on-error: true
         run: mvn clean verify
         working-directory: spring-boot/shopservice
 
       - name: Show ojp-server logs (partial-cluster run)
-        if: always()
+        if: >-
+          ${{
+            steps.partial_logs_cleared.outcome == 'success' &&
+            (failure() ||
+             steps.partial_glassfish.outcome == 'failure' ||
+             steps.partial_micronaut.outcome == 'failure' ||
+             steps.partial_quarkus.outcome == 'failure' ||
+             steps.partial_atomikos.outcome == 'failure' ||
+             steps.partial_narayana.outcome == 'failure' ||
+             steps.partial_spring_boot.outcome == 'failure')
+          }}
         run: |
-          echo "=== OJP Server 1 (port 1059) ==="
-          cat /tmp/ojp-server-1.log || echo "/tmp/ojp-server-1.log not found"
+          echo "=== OJP Server 1 (port 1059): last 64 KiB ==="
+          if [ -f /tmp/ojp-server-1.log ]; then
+            python3 -c 'import os, sys
+          with open(sys.argv[1], "rb") as log:
+              log.seek(max(0, os.fstat(log.fileno()).st_size - 65536))
+              sys.stdout.buffer.write(log.read(65536))' /tmp/ojp-server-1.log
+          else
+            echo "/tmp/ojp-server-1.log not found"
+          fi
 
       - name: Kill remaining OJP server (port 1059)
         if: always()
